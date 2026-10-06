@@ -1,0 +1,30 @@
+{
+  "version": "1.0.0",
+  "updatedAt": "2026-10-04T00:00:00.000Z",
+  "dependencies": [
+    {
+      "name": "microsoft/agent-governance-toolkit",
+      "resolvedVersion": "09cb915",
+      "repoUrl": "https://github.com/microsoft/agent-governance-toolkit.git",
+      "ref": "09cb915",
+      "path": ".slim/clonedeps/repos/microsoft__agent-governance-toolkit",
+      "reason": "Reference architecture for a dedicated policy engine + pre-tool-call enforcement + OWASP-Agentic Top-10 policy schemas."
+    },
+    {
+      "name": "preloop/preloop",
+      "resolvedVersion": "0478112",
+      "repoUrl": "https://github.com/preloop/preloop.git",
+      "ref": "0478112",
+      "path": ".slim/clonedeps/repos/preloop__preloop",
+      "reason": "Reference architecture for MCP firewall: YAML+CEL policy -> human-approval queue -> audit; maps to allow|flag|gate_to_human."
+    },
+    {
+      "name": "trailofbits/mcp-context-protector",
+      "resolvedVersion": "05e56c1",
+      "repoUrl": "https://github.com/trailofbits/mcp-context-protector.git",
+      "ref": "05e56c1",
+      "path": ".slim/clonedeps/repos/trailofbits__mcp-context-protector",
+      "reason": "Minimal stdio JSON-RPC interceptor shape for a pre-tool-call MCP gate."
+    }
+  ]
+}

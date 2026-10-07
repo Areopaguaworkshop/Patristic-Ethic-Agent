@@ -1,0 +1,23 @@
+[project]
+name = "patristic-ethics"
+version = "0.0.1"
+description = "PEA (Patristic Ethics Agent) - ethics middleware probes for LLM agent hosts"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp>=2.3,<3",
+    "ollama>=0.6.3,<0.7",
+    "pydantic>=2.9",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/patristic_ethics"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

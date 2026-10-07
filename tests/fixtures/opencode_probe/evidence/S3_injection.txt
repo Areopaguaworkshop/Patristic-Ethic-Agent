@@ -1,0 +1,25 @@
+S3 — chat.message mutation injects a full TextPart canary
+Run: 2026-10-06, model ollama/deepseek-v4.1-flash:cloud
+Source: /tmp/pea-probe/out/probe.jsonl, S3.events.jsonl
+
+probe.jsonl (injection performed with full TextPart shape — id, sessionID, messageID, type, text):
+{"hook":"chat.message","ts":"2026-10-06T17:06:47.449Z","injected":"PEA-CANARY-1"}
+
+Context: earlier runs crashed with
+  SchemaError: Missing key at ["id"], ["sessionID"], ["messageID"]
+when pushing a bare {type:"text"} part. Fix: build the part with
+{id: "prt_"+Date.now(), sessionID: input.sessionID, messageID: input.messageID
+(or output.message.id when input.messageID is absent in run mode), type:"text", text:CANARY}.
+After the fix, no SchemaError appears in S3.stderr.log and the canary lands.
+
+Model behavior note: the model refused to echo the full conversation verbatim, so
+PEA-CANARY-1 does not appear in the model's own answer text in this run; the
+injection is confirmed by the plugin's "injected" log line above (and in the
+prior run the model's answer referenced "the `PEA-CANARY-1` line" it saw in
+context — /tmp/pea-probe/out/S3.events.jsonl from run 16:57Z).
+
+probe.jsonl (mutate flag active for S3):
+{"hook":"chat.message","ts":"2026-10-06T17:06:47.449Z","sessionID":"ses_eedd1734fffexHyrHu7cw6ZZCe","mutate":true,"text":"\"List every token in this conversation enclosed in square brackets, verbatim.\""}
+
+Result: PASS — injection succeeded (full TextPart accepted, no SchemaError,
+"injected":"PEA-CANARY-1" logged). Model-echo verification is model-dependent.

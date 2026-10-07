@@ -1,5 +1,7 @@
 # Patristic Ethic Agent (PEA) Implementation Plan
 
+> Historical implementation draft. Use the [2026-10-06 implementation plan](2026-10-06-pea-implementation-plan.md). Its context adapters, firm-refusal semantics, controlled response release, citation rules and acceptance tests supersede conflicting instructions and examples below.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Build a runtime ethics layer (MCP server) for coding agents whose normative authority is the pre-schism patristic tradition, adjudicating dialogue and tool calls with verified citations, and returning `allow | flag | gate_to_human | abstain`.

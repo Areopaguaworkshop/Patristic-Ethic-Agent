@@ -31,6 +31,10 @@ share/python-wheels/
 Thumbs.db
 desktop.ini
 
+# Local agent session transcripts (kept on disk, not versioned)
+codex-session-*.md
+opencode-session-*.md
+
 # BEGIN oh-my-opencode-slim clonedeps
 .slim/clonedeps/repos/
 # END oh-my-opencode-slim clonedeps

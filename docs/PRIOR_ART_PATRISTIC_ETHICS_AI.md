@@ -1,5 +1,7 @@
 # Prior Art: Patristic Ethics AI — Landscape Survey
 
+> Historical survey. Absolute non-existence, novelty and deployment claims below are not established by the current review. See the narrower, source-checked findings in the [2026-10-06 research report](research/2026-10-06-context-aware-ethics-runtime.md#5-religious-prior-art-and-the-limits-of-novelty-claims).
+
 > Verified Oct 2026 by @librarian from primary sources (GitHub API, HuggingFace API,
 > OpenAlex, Wayback, direct repo inspection). Feeds plan
 > `docs/plans/2026-10-04-patristic-ethics-mcp.md` §4.3.

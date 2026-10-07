@@ -1,5 +1,7 @@
 # Reference: Runtime Security & Governance Layers — Architecture / Workflow Deep-Dives
 
+> Update 2026-10-06: this reference emphasizes tool interception. The [new runtime research](research/2026-10-06-context-aware-ethics-runtime.md) also verifies AGT model-call adapters and Preloop model-gateway/streaming enforcement. Use the [current plan](plans/2026-10-06-pea-implementation-plan.md) for refusal and human-review semantics.
+
 > Saved as a standalone reference for the **Patristic Ethics MCP** plan
 > (`docs/plans/2026-10-04-patristic-ethics-mcp.md`). All findings are from
 > **source-code analysis of local clones** (read-only, under

@@ -1,0 +1,15 @@
+S1 — plugin load + baseline chat.message
+Run: 2026-10-06, model ollama/deepseek-v4.1-flash:cloud (after ornith-1.5:9b failed)
+Source: /tmp/pea-probe/out/probe.jsonl, S1.events.jsonl, S1.stderr.log
+
+probe.jsonl (chat.message fired for the user prompt):
+{"hook":"chat.message","ts":"2026-10-06T17:05:56.203Z","sessionID":"ses_eedd24b6fffenac2j7j2Q9tBYm","mutate":false,"text":"\"Reply with exactly: PEA_BASELINE_OK\""}
+
+probe.jsonl (plugin loaded, host acknowledged):
+{"hook":"event","ts":"2026-10-06T17:06:08.742Z","type":"plugin.added"}  (excerpted; two plugin.added events observed)
+
+S1.events.jsonl (model call succeeded, baseline text returned):
+{"type":"text","timestamp":1791306368831,"sessionID":"ses_eedd24b6fffenac2j7j2Q9tBYm","part":{"id":"prt_1122e06c2001DdCxgdtCdxhHEN","messageID":"msg_1122dd63e001DyV0Z9ENthDh2v","sessionID":"ses_eedd24b6fffenac2j7j2Q9tBYm","type":"text","text":"PEA_BA...  (continues "PEA_BASELINE_OK")
+
+Result: PASS — plugin loaded, chat.message fired, model call succeeded (exit 0, 935 bytes).
+Note: ollama/ornith-1.5:9b was tried first and failed S1 (exit 137, hang until timeout -k 5 240; earlier runs showed HTTP 400 "Failed to initialize samplers: failed to parse grammar" from http://localhost:11434/v1/chat/completions).

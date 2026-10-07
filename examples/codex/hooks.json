@@ -1,0 +1,27 @@
+{
+  "$schema": "https://raw.githubusercontent.com/openai/codex/main/docs/hooks.schema.json",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run python -m patristic_ethics.adapters.codex",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run python -m patristic_ethics.adapters.codex",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

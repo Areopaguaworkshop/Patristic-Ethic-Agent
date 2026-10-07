@@ -1,0 +1,14 @@
+{
+  "name": "@pea/opencode-adapter",
+  "version": "0.0.1",
+  "private": true,
+  "description": "PEA (Patristic Ethics Agent) native OpenCode adapter plugin (M4a).",
+  "type": "module",
+  "main": "index.ts",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "peerDependencies": {
+    "@opencode-ai/plugin": "*"
+  }
+}

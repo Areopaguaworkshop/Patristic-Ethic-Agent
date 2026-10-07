@@ -1,0 +1,18 @@
+S2 — tool.execute.before blocks the bash call; tool.execute.after absent
+Run: 2026-10-06, model ollama/deepseek-v4.1-flash:cloud
+Source: /tmp/pea-probe/out/probe.jsonl, S2.events.jsonl
+
+probe.jsonl (before-hook fired and blocked; throw = PEA_PROBE_BLOCKED):
+{"hook":"tool.execute.before","ts":"2026-10-06T17:06:35.000Z","sessionID":"ses_eedd1bd1bffeiP0Di4orv1I8Rq","tool":"bash","callID":"call_93w2y9ya","blocked":true}
+
+probe.jsonl (after-hook check: zero "tool.execute.after" entries for the blocked call):
+$ grep -c "tool.execute.after" probe.jsonl
+0 matches
+
+S2.events.jsonl (tool part shows the blocked state, not an executed result):
+{"type":"tool_use","timestamp":1791306395050,"sessionID":"ses_eedd1bd1bffeiP0Di4orv1I8Rq","part":{"type":"tool","tool":"bash","callID":"call_93w2y9ya","state":{"status":"error","input":{"command":"echo PEA_PROBE_BLOCK"},"error":"PEA_PROBE_BLOCKED","time":{"start":1791306394951,"end":1791306395003}},"id":"prt_1122e6d3a001Rq0EM38324ryOZ",...}}
+
+S2.events.jsonl (model observed the block and reported it):
+{"type":"text",...,"text":"Done. Note: output was `PEA_PROBE_BLOCKED`, not `PEA_PROBE_BLOCK` — something in the shell/hook layer appended `ED`."}
+
+Result: PASS — tool.execute.before fired, detected the sentinel in args, threw; the tool call shows status "error" with error "PEA_PROBE_BLOCKED"; no tool.execute.after entry exists for this session's blocked call.

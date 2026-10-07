@@ -1,7 +1,7 @@
 # Patristic Ethic Agent (PEA) — Design
 
 **Date:** 2026-10-05
-**Status:** decisions locked with user; implementation plan: `docs/plans/2026-10-05-patristic-ethic-agent-plan.md`
+**Status:** historical design; revised by the [2026-10-06 implementation plan](2026-10-06-pea-implementation-plan.md) and [runtime research](../research/2026-10-06-context-aware-ethics-runtime.md). Earlier decisions remain only where consistent with the current plan and user dialogue.
 **Supersedes:** nothing — extends `docs/plans/2026-10-04-patristic-ethics-mcp.md` (kept as reference) with corpus-verified amendments.
 
 ---

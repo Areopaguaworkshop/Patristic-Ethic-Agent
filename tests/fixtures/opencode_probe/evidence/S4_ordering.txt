@@ -1,0 +1,22 @@
+S4 — repeat baseline: text-delta vs experimental.text.complete ordering
+Run: 2026-10-06, model ollama/deepseek-v4.1-flash:cloud
+Source: /tmp/pea-probe/out/probe.jsonl, S4.events.jsonl, S1.events.jsonl
+
+probe.jsonl (experimental.text.complete observed — fires for every scenario session):
+{"hook":"experimental.text.complete","ts":"2026-10-06T17:06:08.742Z","sessionID":"ses_eedd24b6fffenac2j7j2Q9tBYm"}   (S1)
+{"hook":"experimental.text.complete","ts":"2026-10-06T17:06:37.052Z","sessionID":"ses_eedd1bd1bffeiP0Di4orv1I8Rq"}   (S2)
+{"hook":"experimental.text.complete","ts":"2026-10-06T17:07:11.950Z","sessionID":"ses_eedd1734fffexHyrHu7cw6ZZCe"}   (S3)
+{"hook":"experimental.text.complete","ts":"2026-10-06T17:07:29.744Z","sessionID":"ses_eedd0e954ffei2G6EnOLqJDzQd"}   (S4)
+
+Ordering (S1, same session ses_eedd24b6fffenac2j7j2Q9tBYm):
+- experimental.text.complete fired at ts 17:06:08.742Z (probe.jsonl, also in S1.stderr.log at 17:06:08.751Z)
+- the final text part ("PEA_BASELINE_OK") was published with event timestamp 1791306368831 = 17:06:08.831Z
+
+i.e. the hook fired BEFORE the completed text part appeared in the run's JSON
+event stream — consistent with the pinned source finding that deltas are already
+published before/while experimental.text.complete fires: the hook cannot be used
+to withhold display.
+
+Result: PASS — experimental.text.complete observed; text part timestamp ≥ hook
+timestamp, confirming the hook fires after deltas are published (no
+before-display guarantee).

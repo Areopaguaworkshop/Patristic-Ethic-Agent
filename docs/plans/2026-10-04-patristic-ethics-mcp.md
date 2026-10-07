@@ -1,5 +1,7 @@
 # Patristic Ethics MCP — Tier-1 Implementation Plan
 
+> Historical plan. The [2026-10-06 implementation plan](2026-10-06-pea-implementation-plan.md) is now authoritative where requirements or architecture differ. In particular, MCP alone does not collect dialogue context, and clear harmful assistance cannot be released by human approval.
+
 > **For the executing agent:** Use superpowers:executing-plans to work this plan task-by-task. Each task has a failing test first, then the minimal implementation.
 
 **Goal:** Build an MCP server that gives AI agents a runtime ethics layer whose normative authority is the Latin, Greek, and Syriac Church Fathers — every verdict citation-grounded, auditable, and allowed to abstain.

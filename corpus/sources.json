@@ -1,0 +1,74 @@
+[
+  {
+    "id": "src-f1kg-tlg2022",
+    "name": "First1KGreek — Gregory of Nazianzus, Carmina Moralia XXX (Sententiae, pseudo-Menander tradition)",
+    "url": "https://github.com/OpenGreekAndLatin/First1KGreek/tree/master/data/tlg2022/tlg060",
+    "license": "CC-BY-SA-4.0",
+    "rights_evidence_url": "https://raw.githubusercontent.com/OpenGreekAndLatin/First1KGreek/master/data/tlg2022/tlg060/tlg2022.tlg060.1st1K-grc1.xml",
+    "coverage": "Greek (grc): Gregory of Nazianzus tlg2022, Carmina Moralia XXX (Ullmann ed. 1961, 24 moral sentences)",
+    "notes": "TEI edition header carries <licence target=\"https://creativecommons.org/licenses/by-sa/4.0/\">. ShareAlike: downstream reuse of these texts must carry CC-BY-SA-4.0."
+  },
+  {
+    "id": "src-pta-pta0022",
+    "name": "Patristic Text Archive (pta_data) — Athanasius of Alexandria, Contra gentes (pta0022.pta001), Greek edition (pta-grc1)",
+    "url": "https://github.com/PatristicTextArchive/pta_data/tree/master/data/pta0022/pta001",
+    "license": "CC-BY-SA-4.0",
+    "rights_evidence_url": "https://raw.githubusercontent.com/PatristicTextArchive/pta_data/master/data/pta0022/pta001/pta0022.pta001.pta-grc1.xml",
+    "coverage": "Greek (grc): Athanasius, Contra gentes, critical edition with apparatus; lem readings used",
+    "notes": "TEI header carries <licence target=\"https://creativecommons.org/licenses/by-sa/4.0/\">. Critical-apparatus XML: quoted spans are the <lem> (edited) reading, not a diplomatic manuscript text."
+  },
+  {
+    "id": "src-syriac-corpus-aphrahat",
+    "name": "Digital Syriac Corpus (Oxford-BYU, github srophe/syriac-corpus) — Aphrahat, Demonstrations",
+    "url": "https://github.com/srophe/syriac-corpus/tree/master/data/tei",
+    "license": "CC-BY-4.0",
+    "rights_evidence_url": "https://raw.githubusercontent.com/srophe/syriac-corpus/master/data/tei/9.xml",
+    "coverage": "Syriac (syr): Aphrahat Demonstrations 1-23 (base text ed. Parisot, Patrologia Syriaca 1.1, 1894)",
+    "notes": "TEI XML edition (James E. Walters) released CC BY 4.0; base text public domain. License statement in <availability>/<licence> of each file."
+  },
+  {
+    "id": "src-syriac-corpus-ephrem",
+    "name": "Digital Syriac Corpus (Oxford-BYU, github srophe/syriac-corpus) — Ephrem the Syrian, Hymns on Nisibis",
+    "url": "https://github.com/srophe/syriac-corpus/tree/master/data/tei",
+    "license": "CC-BY-4.0",
+    "rights_evidence_url": "https://raw.githubusercontent.com/srophe/syriac-corpus/master/data/tei/300.xml",
+    "coverage": "Syriac (syr): Ephrem, Carmina Nisibena (base text ed. Beck, CSCO 240, 1963; vocalized transcription)",
+    "notes": "TEI XML edition CC BY 4.0; base text public domain. License statement in <availability>/<licence> of each file."
+  },
+  {
+    "id": "src-ccel-npnf101",
+    "name": "CCEL — Nicene and Post-Nicene Fathers, First Series, Vol. 1 (Augustine: Confessions, Letters; trans. J.G. Pilkington et al.)",
+    "url": "https://www.ccel.org/ccel/schaff/npnf101.xml",
+    "license": "public-domain",
+    "rights_evidence_url": "https://www.ccel.org/ccel/schaff/npnf101.xml",
+    "coverage": "English (en): Augustine, Confessions (Pilkington trans., 1886 NPNF1-1); Schaff prolegomena",
+    "notes": "ThML header carries <DC.Rights>Public Domain</DC.Rights>. Translator and edition recorded in the ThML header."
+  },
+  {
+    "id": "src-ccel-npnf110",
+    "name": "CCEL — Nicene and Post-Nicene Fathers, First Series, Vol. 10 (Chrysostom, Homilies on Matthew; trans. Rev. Sir George Prevost)",
+    "url": "https://www.ccel.org/ccel/schaff/npnf110.xml",
+    "license": "public-domain",
+    "rights_evidence_url": "https://www.ccel.org/ccel/schaff/npnf110.xml",
+    "coverage": "English (en): John Chrysostom, Homilies on the Gospel of St. Matthew (Prevost trans., 1888 NPNF1-10)",
+    "notes": "ThML header carries <DC.Rights>Public Domain</DC.Rights>."
+  },
+  {
+    "id": "src-latinlibrary-conf",
+    "name": "The Latin Library — Augustine, Confessiones (Latin)",
+    "url": "http://www.thelatinlibrary.com/august.html",
+    "license": "public-domain",
+    "rights_evidence_url": "http://www.thelatinlibrary.com/about.html",
+    "coverage": "Latin (lat): Augustine, Confessiones, books I-XIII (Latin reading text)",
+    "notes": "Site-level rights statement: 'I have taken every reasonable precaution to ensure that the Latin texts presented here are in the Public Domain.' No per-file edition attribution; spans are short and checked against known readings of the critical text."
+  },
+  {
+    "id": "src-migne-pl40",
+    "name": "Migne, Patrologia Latina vol. 40 (Augustine: De Mendacio, Contra Mendacium, De Bono Conjugali, etc.) — archive.org scan",
+    "url": "https://archive.org/details/PatrologiaeLatina40",
+    "license": "public-domain",
+    "rights_evidence_url": "https://archive.org/details/PatrologiaeLatina40",
+    "coverage": "Latin (lat): Augustine, De Mendacio (PL 40, cols. 487-518)",
+    "notes": "1865 Migne edition; public domain by age. archive.org djvu.txt OCR of this scan is heavily corrupted (character-level errors and column interleaving), so no verbatim spans were extractable from it in this milestone; kept as a listed source with a null-text placeholder unit pending a cleaner transcription."
+  }
+]

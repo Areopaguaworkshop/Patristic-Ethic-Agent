@@ -1,0 +1,634 @@
+{
+  "schema_version": 1,
+  "status": "experimental",
+  "release_ready": false,
+  "profile_path": "docs/releases/pea-0.0.1-experimental-profile.json",
+  "profile": {
+    "schema_version": 1,
+    "id": "pea-0.0.1-experimental-2026-10-08",
+    "package_version": "0.0.1",
+    "status": "experimental",
+    "release_ready": false,
+    "runtime_baseline": {
+      "assessment_backend": "fake",
+      "ollama_model": "ornith-1.5:9b",
+      "ollama_host": "http://localhost:11434",
+      "context_length": null,
+      "thinking": "model-default",
+      "assessment_options": {
+        "temperature": 0,
+        "num_predict": 512
+      },
+      "controlled_timeout_s": 600,
+      "native_python_timeout_s": 15,
+      "native_opencode_timeout_ms": 20000,
+      "revision_enabled": false,
+      "history_messages": 40,
+      "history_characters": 16000,
+      "example_native_host_timeout_s": 30
+    },
+    "comparison_baseline": {
+      "backend": "fake",
+      "repeats": 1,
+      "temperature": 0,
+      "num_predict": 1024,
+      "seed": 0,
+      "timeout_s": 60,
+      "context_length": null,
+      "thinking": "model-default",
+      "generation_model": "ornith-1.5:9b",
+      "assessment_model": "ornith-1.5:9b",
+      "scope": "direct tools-disabled Ollama; not coding-host comparison"
+    },
+    "tuning_evidence": {
+      "context_length": 8192,
+      "thinking": "off",
+      "num_predict": 64,
+      "timeout_s": 60,
+      "scope": "preserved incomplete local smoke run; not a validated runtime preset"
+    },
+    "hosts": [
+      {
+        "host": "opencode",
+        "mode": "native",
+        "status": "implemented-experimental",
+        "live_acceptance": "pending",
+        "scope": "advisory input guidance; covered pre-tool gate; no before-display guarantee"
+      },
+      {
+        "host": "opencode",
+        "mode": "controlled",
+        "status": "implemented-experimental",
+        "live_acceptance": "pending",
+        "scope": "effective config checked; tools-disabled buffered display; live managed config/compaction incomplete"
+      },
+      {
+        "host": "codex",
+        "mode": "native",
+        "status": "implemented-experimental",
+        "live_acceptance": "pending",
+        "scope": "covered prompt/pre-tool protocol and opt-in hook history; live delivery incomplete"
+      },
+      {
+        "host": "codex",
+        "mode": "controlled",
+        "status": "unsupported",
+        "live_acceptance": "pending",
+        "scope": "preventive tools-disabled boundary not established"
+      },
+      {
+        "host": "claude-code",
+        "mode": "native",
+        "status": "implemented-experimental",
+        "live_acceptance": "pending",
+        "scope": "covered prompt/pre-tool protocol and opt-in hook history; live delivery incomplete"
+      },
+      {
+        "host": "claude-code",
+        "mode": "controlled",
+        "status": "implemented-experimental",
+        "live_acceptance": "pending",
+        "scope": "tools-disabled buffered print/JSON; live enforcement/continuation incomplete"
+      }
+    ],
+    "release_gates": {
+      "policy_and_corpus_review": "pending",
+      "operator_os_isolation": "pending",
+      "owner_locked_holdout": "pending",
+      "independent_human_grading": "pending",
+      "live_host_conformance": "pending",
+      "backend_accuracy_and_latency": "pending"
+    },
+    "evidence": [
+      {
+        "path": "README.md",
+        "scope": "run instructions and explicit supported/unsupported modes"
+      },
+      {
+        "path": "docs/plans/2026-10-06-pea-implementation-plan.md",
+        "scope": "canonical requirements and progress; acceptance still partial"
+      },
+      {
+        "path": "docs/plans/2026-10-08-remaining-engineering.md",
+        "scope": "engineering backlog and deferred external dependencies"
+      },
+      {
+        "path": "docs/host-coverage.md",
+        "scope": "host capability limits"
+      },
+      {
+        "path": "docs/hosts/opencode.md",
+        "scope": "OpenCode evidence and limits"
+      },
+      {
+        "path": "docs/hosts/codex.md",
+        "scope": "Codex evidence and unsupported controlled path"
+      },
+      {
+        "path": "docs/hosts/claude-code.md",
+        "scope": "Claude evidence and limits"
+      },
+      {
+        "path": "docs/operator-boundary.md",
+        "scope": "dispatch recovery checks; OS isolation unproven"
+      },
+      {
+        "path": "docs/evaluation/host-conformance.md",
+        "scope": "synthetic shared adapter fixture results"
+      },
+      {
+        "path": "docs/evaluation/ollama-diagnostic.md",
+        "scope": "CPU-only inference diagnostic, timeouts and incomplete smoke"
+      },
+      {
+        "path": "docs/evaluation/human-grading.md",
+        "scope": "validated grade ingestion; no actual human grades"
+      },
+      {
+        "path": "docs/evaluation/response-comparison.md",
+        "scope": "matched direct-local comparison pipeline"
+      },
+      {
+        "path": "docs/evaluation/artifacts/2026-10-08-ollama-smoke.json",
+        "scope": "preserved original partial three-condition smoke"
+      },
+      {
+        "path": "docs/evaluation/artifacts/2026-10-08-ollama-smoke-cases.jsonl",
+        "scope": "original smoke scenario"
+      },
+      {
+        "path": "docs/evaluation/artifacts/2026-10-08-assessment-before-fix.json",
+        "scope": "original evidence-schema failure"
+      },
+      {
+        "path": "docs/evaluation/artifacts/2026-10-08-assessment-after-fix.json",
+        "scope": "schema-aligned assessment timeout"
+      },
+      {
+        "path": "docs/plans/2026-10-08-owner-acceptance.md",
+        "scope": "prepared owner/environment decisions; no approvals supplied"
+      }
+    ],
+    "observed_environment": {
+      "python": "3.13.0",
+      "packages": {
+        "mcp": "2.3.0",
+        "ollama": "0.6.3",
+        "pydantic": "2.13.5",
+        "pytest": "9.1.1"
+      },
+      "ollama_server": "0.31.2",
+      "ollama_model_short_id": "c9fcb824860b",
+      "model_identity_limit": "Full manifest digest read from local Ollama inventory on 2026-10-08; weight export, availability and runtime model matching are not enforced by file verification.",
+      "ollama_model_digest": "c9fcb824860b2acfca9f84b2eb625df0cd1d4d1e57f15f6e9e56d3c3ddb2b110"
+    }
+  },
+  "inputs_sha256": "fe1c3bcba628ef3328797462adf8e5e9412110a78c4d4ccd18889980ca533593",
+  "files": {
+    "README.md": {
+      "sha256": "8c16dbd724c0506f211365e1e9514ef7ea62bf4abaff2a5c9de0694b2cb5976e",
+      "bytes": 6412
+    },
+    "adapters/opencode/index.ts": {
+      "sha256": "e021bf3b72a968ee9770c976d76de636b52368f21231ca27b092ca8bbf401910",
+      "bytes": 14496
+    },
+    "adapters/opencode/package.json": {
+      "sha256": "5fbe4ea97c0939e0f1e13f7ffd6634667d3e248216f2ba7558baba82ab26252e",
+      "bytes": 309
+    },
+    "corpus/seed.jsonl": {
+      "sha256": "bd6ef67d24e39df694d8788580b584d029347c40688ba4ad71464feb89becc45",
+      "bytes": 50201
+    },
+    "corpus/units.db": {
+      "sha256": "de9d4e6f822c0a3a4e09e0e37f8496051072d58cfeb7573691436fa6b6d3919e",
+      "bytes": 90112
+    },
+    "docs/evaluation/artifacts/2026-10-08-assessment-after-fix.json": {
+      "sha256": "aca331ac9decf3a9ffaf9d18dbc1c51b224bd9011cbaf3806a147fae6c944a4f",
+      "bytes": 177
+    },
+    "docs/evaluation/artifacts/2026-10-08-assessment-before-fix.json": {
+      "sha256": "93750ecebddc32d324ab55cea811ced9564c2f66c98fd7d3ef0f463303444758",
+      "bytes": 271
+    },
+    "docs/evaluation/artifacts/2026-10-08-ollama-smoke-cases.jsonl": {
+      "sha256": "cfc5948b448d0d0b41a08b28c251f35dac95ff7889b95b3b9395434662f6ae09",
+      "bytes": 180
+    },
+    "docs/evaluation/artifacts/2026-10-08-ollama-smoke.json": {
+      "sha256": "2185152eb75d8ac756f3b523cae896e9881007e8c482ad674a31df62983b150f",
+      "bytes": 3900
+    },
+    "docs/evaluation/host-conformance.md": {
+      "sha256": "b83ace359dc78a184db71103d103dc35ab1db80266e3bb96095425d8410e32b1",
+      "bytes": 3239
+    },
+    "docs/evaluation/human-grading.md": {
+      "sha256": "574aee3c05ca23ae311b5e140f1eafb3b7d8ea1501281b2cdbc1920e9bc0f8bf",
+      "bytes": 4532
+    },
+    "docs/evaluation/ollama-diagnostic.md": {
+      "sha256": "a7cc035af5d9fdee3e4d09c10a353270965de028b1f8ad8c3d309705f49e10b7",
+      "bytes": 6361
+    },
+    "docs/evaluation/response-comparison.md": {
+      "sha256": "ec6bf55bb335614c76e916b22c13dc2c38ebdc14ae59f9566ea1534197d228a5",
+      "bytes": 5426
+    },
+    "docs/host-coverage.md": {
+      "sha256": "5a8a9b03d5a7c956c7e19711e7fc24f8fb6a183ed4cdd18f272b3b569270db94",
+      "bytes": 9389
+    },
+    "docs/hosts/claude-code.md": {
+      "sha256": "7ee0b2d44607a227e6ca3a53f7f03aee1e16dd5ff0f7ab00db9ec6c3efcbd01b",
+      "bytes": 17704
+    },
+    "docs/hosts/codex.md": {
+      "sha256": "ba307eb29abcc290e0adec0d5d5927809e765902ae7cca60f881f1e7d2dd903a",
+      "bytes": 10909
+    },
+    "docs/hosts/opencode.md": {
+      "sha256": "0dfa54737f2439d657b280fe5980279bb0d5e763c9611a00153579887e256621",
+      "bytes": 18793
+    },
+    "docs/operator-boundary.md": {
+      "sha256": "509348407484fcbb8c1922dc0849ca5168b2fb7e10231c9b8026998d301f0c32",
+      "bytes": 8207
+    },
+    "docs/plans/2026-10-06-pea-implementation-plan.md": {
+      "sha256": "85214c68d327de052cfe75551594d42321910381b89486849e411085e54596be",
+      "bytes": 79729
+    },
+    "docs/plans/2026-10-08-owner-acceptance.md": {
+      "sha256": "ce99bea1c895714d3d186a0231d4b102a0a08089eccbac8a80ec32d95bc430d8",
+      "bytes": 3853
+    },
+    "docs/plans/2026-10-08-remaining-engineering.md": {
+      "sha256": "cab677c9d5fff5b272e622f4ef35c71a77a343e908249d008408ec4cd66eb03e",
+      "bytes": 6381
+    },
+    "docs/releases/pea-0.0.1-experimental-profile.json": {
+      "sha256": "746e6a5c37ea777de848d590804ff138948a3f166198450cb25a5742725d5e3a",
+      "bytes": 5749
+    },
+    "eval/compare.py": {
+      "sha256": "3e099e28815bac7ca7475f9fa2af1128c99aa5a76445b34e524841e8856f4666",
+      "bytes": 12171
+    },
+    "eval/freeze.py": {
+      "sha256": "6e65ad0b3c8d66c65424ca4a23ac9f761e46b578d7154eb7dfdefaa6de39b851",
+      "bytes": 5855
+    },
+    "eval/grade.py": {
+      "sha256": "8ed85216d6ae9814a7dd1b6dfe0f2558f0fc23fac8c47f16841019499000acc7",
+      "bytes": 10701
+    },
+    "eval/rubric.md": {
+      "sha256": "20a94b1ab357bf515b2af51044e14afd76df3258c0a288ffedc9738ad4d19bd6",
+      "bytes": 5045
+    },
+    "eval/run.py": {
+      "sha256": "4b359997a812e0b5b31aac23706aa945711db8c072146a1bbb648f79fe9a0746",
+      "bytes": 25631
+    },
+    "eval/scenarios.jsonl": {
+      "sha256": "d3d5d19c3c82b5d7ddc7e7b3345ac04d81f0c1ec84abc195c14bc2e259b32d89",
+      "bytes": 14795
+    },
+    "examples/claude-code/settings.json": {
+      "sha256": "d5cadd7f3a172b3f58bed51282aa8196e01aae0c7bca9943bc3ad8d8b406adf7",
+      "bytes": 520
+    },
+    "examples/codex/hooks.json": {
+      "sha256": "d7daa8b2d3fd144ceaeb378effcb2a1708d27261459c9df798c411eb44afd4e1",
+      "bytes": 573
+    },
+    "examples/opencode/README.md": {
+      "sha256": "57a306c8ed371dd8586f16982463072105d0c61808a2c9f20adeb8c8dde47caa",
+      "bytes": 3693
+    },
+    "examples/opencode/controlled/opencode.json": {
+      "sha256": "f5e4cdf50d77c35fd0c17130cb868f11e072d0e842d86fa0b16059d2d51b113a",
+      "bytes": 83
+    },
+    "examples/opencode/opencode.json": {
+      "sha256": "e2f1324ac594e371b832342614aa200ee784fdbf7b240b6851e2e6ce894ad786",
+      "bytes": 566
+    },
+    "policy/constitution.md": {
+      "sha256": "50154dd1fbd29519c1d6f3b198320e83d079b8aa5ae94b3162a162907fec8252",
+      "bytes": 25141
+    },
+    "policy/rules.json": {
+      "sha256": "ef9b1e0fe0ea5e8d54276b5abbe7a992eaae1839e44fe7f872e7ad74bbdff355",
+      "bytes": 16842
+    },
+    "policy/rules.schema.json": {
+      "sha256": "d7787498444692d5ffa55e1cf87b53c85ebc39b74a587ac6c249fa504704611f",
+      "bytes": 3315
+    },
+    "pyproject.toml": {
+      "sha256": "723be53a89b67e2511a25278a689f08c168b0423f7ba95594e2d4f30f9dd1c73",
+      "bytes": 724
+    },
+    "scripts/pea_controlled.sh": {
+      "sha256": "80ed5979d49bb9e578e0a6c8c48a8e605ff7b39549bd284dd7ca10ea4f4e6572",
+      "bytes": 655
+    },
+    "scripts/probe_opencode.sh": {
+      "sha256": "4c346710a909609301c1e494f88243f2811baf6a7a68fd150c8682a19f077fde",
+      "bytes": 4185
+    },
+    "scripts/probe_pea_plugin.sh": {
+      "sha256": "6e8eb33e0cc99c738c83e5f69ee5e0c767f05fa252702c7425a7b4e4f998b9df",
+      "bytes": 12413
+    },
+    "src/patristic_ethics/__init__.py": {
+      "sha256": "36f83589ae084cf3cc805efb48413b51cb41a2cca80ce9332feba0e7ad701cb8",
+      "bytes": 310
+    },
+    "src/patristic_ethics/adapters/__init__.py": {
+      "sha256": "71f37c09fdf6373a2c6afd11a4d20421862fd722ce465743c2f49f763a639f56",
+      "bytes": 6
+    },
+    "src/patristic_ethics/adapters/claude_code.py": {
+      "sha256": "d4bc0caf9706d1ce37788104d123b75f88fe62a092c7b83476b8875fd174a40c",
+      "bytes": 9985
+    },
+    "src/patristic_ethics/adapters/codex.py": {
+      "sha256": "7d78865ad3707a1ff397d090cc7f840c119cc01628cfbae4ff96f7fa71235df0",
+      "bytes": 10310
+    },
+    "src/patristic_ethics/adapters/history.py": {
+      "sha256": "28a3987efca7b3ffde53e005bb423ce366718d57a73d98354c87d6af483442fd",
+      "bytes": 4407
+    },
+    "src/patristic_ethics/adapters/result.py": {
+      "sha256": "0f0e087ce32e23be6122ab6be0918ed50792d29020266601a137da120aeee63c",
+      "bytes": 764
+    },
+    "src/patristic_ethics/assess.py": {
+      "sha256": "0a8f6b27c17abb1481a0c81dd44c2e97bc9ba6c200ae30420c30f77984680a1b",
+      "bytes": 9577
+    },
+    "src/patristic_ethics/claude_controlled.py": {
+      "sha256": "9f6ae0782ed3f443bc6a287b952e1a986eab12aa2a410d3be0f649e768ce7fb8",
+      "bytes": 5328
+    },
+    "src/patristic_ethics/cli.py": {
+      "sha256": "8cf6ac91c2bf08bf47811005580a8c9057e75cead8c334b386ddf1553c471de4",
+      "bytes": 6469
+    },
+    "src/patristic_ethics/context.py": {
+      "sha256": "7d8bd990161fc9a3471fe121f3bd148a8b38bf15829653e49e583b8cd01dc7b6",
+      "bytes": 5113
+    },
+    "src/patristic_ethics/controlled.py": {
+      "sha256": "abd1388ca252b424ead9429f9f0f4144d6507140010d8b6ce7ad03d021207a5a",
+      "bytes": 28785
+    },
+    "src/patristic_ethics/corpus.py": {
+      "sha256": "892466224eaa22e89fc62e884e7aabac110d5c1b20c0e4d9d7f47a86305bbfd0",
+      "bytes": 12857
+    },
+    "src/patristic_ethics/guidance.py": {
+      "sha256": "eea490186f7b9547a652b55d58ebfedbe95a7ece24a82f1502973c0a50c91514",
+      "bytes": 10231
+    },
+    "src/patristic_ethics/interpreter.py": {
+      "sha256": "80bded38f2aa69612b9523d03fac0e2eedeb53820d5613fd8bf41a6ad1eebcb4",
+      "bytes": 10734
+    },
+    "src/patristic_ethics/mcp_server.py": {
+      "sha256": "9dcc89c12e8b154228d5e6e69865bccbaa309beea1156dcd18fc9ac027d618b1",
+      "bytes": 12756
+    },
+    "src/patristic_ethics/operator.py": {
+      "sha256": "3ae7b90266388ba8a3a0496200d8d9d672a3efbf80827bf39c61c910ee60084e",
+      "bytes": 2060
+    },
+    "src/patristic_ethics/policy.py": {
+      "sha256": "2238b36d239bfddee698b5723550d4f7c1698ef5c62cf08c6dbadca8fd7038e9",
+      "bytes": 12310
+    },
+    "src/patristic_ethics/proxy.py": {
+      "sha256": "f589fa759fa528a28174d21f883002c9265c11e5a668cee3ffbec33a95661bad",
+      "bytes": 16896
+    },
+    "src/patristic_ethics/runtime_store.py": {
+      "sha256": "79e41ae5b3484993f0c487b750d4c782568a705b30e9010f6696482ac5a9aa21",
+      "bytes": 19067
+    },
+    "src/patristic_ethics/tei_import.py": {
+      "sha256": "73049e82e7747528f40292d53cee854956b70d71446cd25615f55b19f12d3f1d",
+      "bytes": 11302
+    },
+    "tests/fixtures/assess/benign.json": {
+      "sha256": "c13d7b6a370b6cdaefe9c787975570918773ae084892ed55514a9743e208a15e",
+      "bytes": 646
+    },
+    "tests/fixtures/assess/distress.json": {
+      "sha256": "34847c20d5500b79bbdf6394bef5ba21e22a83baccdef938683c3cd0b420b87c",
+      "bytes": 748
+    },
+    "tests/fixtures/assess/multiturn.json": {
+      "sha256": "b189fe61a4dd7028634e96fedb381646026723633c877b54283311cfefc821f0",
+      "bytes": 1245
+    },
+    "tests/fixtures/assess/refuse.json": {
+      "sha256": "c1df1abec1f1363fad39401d805b2fd1483be15b22baff65d8c2d0a96a6f6a36",
+      "bytes": 722
+    },
+    "tests/fixtures/host_conformance/README.md": {
+      "sha256": "d87b6c4dfad7ba6caa1869f8d0646357c307d84e865338f8cdd20ca9c43fed44",
+      "bytes": 790
+    },
+    "tests/fixtures/host_conformance/scenarios.jsonl": {
+      "sha256": "7317fb4feee00d7232152e823676518e36e997c3262cc6489493c98c812d06d0",
+      "bytes": 4412
+    },
+    "tests/fixtures/opencode_probe/evidence/RESULT.md": {
+      "sha256": "cf38c3b7802fdabc1c2e123b4c80c03abea5608322300a3dd555b14d2db48817",
+      "bytes": 6131
+    },
+    "tests/fixtures/opencode_probe/opencode.json": {
+      "sha256": "86f7881d14cc28c159a049226ba2875382c11abcc665eb54eb9cfd0402ba6933",
+      "bytes": 518
+    },
+    "tests/fixtures/opencode_probe/plugins/pea-probe.ts": {
+      "sha256": "1611b4953bddd1e07478698d6636c12fc8037a4acb297802fb9c76946a350636",
+      "bytes": 3338
+    },
+    "tests/fixtures/tei/README.md": {
+      "sha256": "f7d0ae8bbcf627cc80c19c111bcd44ca8d656cf6470037c550da0d13f35f1c0a",
+      "bytes": 5841
+    },
+    "tests/fixtures/tei/greg_carmina.xml": {
+      "sha256": "54ef8223f6c559d1cdb9ab29435f26f47a95840a485a38ebfea59c1ecb17cf76",
+      "bytes": 6890
+    },
+    "tests/fixtures/tei/pta0022_grc1.xml": {
+      "sha256": "fb1b4073a6727ffe8aa1f0ab462acf56dba7ce0b23b337ed3e2b7c14646ea2f5",
+      "bytes": 1348735
+    },
+    "tests/fixtures/tei/syr_2.xml": {
+      "sha256": "9049e08485b1747918e0eefabc1c96e7ca8f817d0beb0e05f6f53c2a56dd06df",
+      "bytes": 47869
+    },
+    "tests/fixtures/tei/syr_20.xml": {
+      "sha256": "4a7957980498c3619a87a6f7e3e15b4cd3c3d7013cd98a74a4feef56c44a5ede",
+      "bytes": 38320
+    },
+    "tests/fixtures/tei/syr_3.xml": {
+      "sha256": "25a454cdaf7e98d16715dede044704757e7363e909580e41f99f9610401cf8e3",
+      "bytes": 38713
+    },
+    "tests/fixtures/tei/syr_300.xml": {
+      "sha256": "f0c16726851e87b5427eacadcd5989a84ecba8665043f048f563b492c94c66a2",
+      "bytes": 21974
+    },
+    "tests/fixtures/tei/syr_9.xml": {
+      "sha256": "7f616d532736e5f7e1a877a453661e7e402d66e2ef1ba95da8854fa7a6f0729e",
+      "bytes": 36442
+    },
+    "tests/integration/__init__.py": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "tests/integration/test_claude_hooks.py": {
+      "sha256": "129506376a99e5bc233b2dc885cd519b2dfeb2d850cf33f7b5213212a34b516f",
+      "bytes": 13161
+    },
+    "tests/integration/test_codex_hooks.py": {
+      "sha256": "2004135e1d5e0604062c333887b1332d5eb7fbd9d6864a642fe79ccb5099a526",
+      "bytes": 12692
+    },
+    "tests/integration/test_controlled_process.py": {
+      "sha256": "3012a5c0445ba58c4abd2983aac6143ba036db0412d0c6ac6eba01f33a137ce6",
+      "bytes": 4938
+    },
+    "tests/integration/test_dispatch_recovery.py": {
+      "sha256": "92f85e8de25264b94e604cb82909337049b0a332cf09c677dd708146a2ad4362",
+      "bytes": 6280
+    },
+    "tests/integration/test_host_contracts.py": {
+      "sha256": "0f0d16b53f69c299da41bfdc5daef7b9677e6939341a30ca62c3feed5d20e914",
+      "bytes": 4173
+    },
+    "tests/integration/test_mcp.py": {
+      "sha256": "c42d008ca78030ac7a3827e88bb007184525ee4b8ee48d28dce8693a83ff1fe5",
+      "bytes": 8749
+    },
+    "tests/integration/test_native_history.py": {
+      "sha256": "cdb96108c12656a2e92fbda2fa0d99789d13a06c7301f4bd50a28552189ea751",
+      "bytes": 8811
+    },
+    "tests/integration/test_opencode_adapter.py": {
+      "sha256": "ec5ebcae511c38fa7654ec6f4c2cc5c621d091713cd745fa7e96da8277c80b48",
+      "bytes": 8087
+    },
+    "tests/integration/test_proxy.py": {
+      "sha256": "f9c4bb78e01d0c0befeafef911bbdadbfebe648deaa60b57df3965e3f25e092f",
+      "bytes": 17838
+    },
+    "tests/integration/test_shared_host_conformance.py": {
+      "sha256": "b88d71a82a217367b73d7d5f68aca0b81b4988f73913c2e81d745055a25ddc17",
+      "bytes": 6508
+    },
+    "tests/test_assess.py": {
+      "sha256": "e5212707effb6efe7c32d770c9b3095b716e0b27d4dcfcc29ae0c7709731ec39",
+      "bytes": 13741
+    },
+    "tests/test_claude_controlled.py": {
+      "sha256": "58117f0f708da37fa5ff1ba8a8b49325a0f189f34c943961118b661edef6f01d",
+      "bytes": 4403
+    },
+    "tests/test_cli.py": {
+      "sha256": "a1c9917c1c93d5fd4fcbfff9fff5f61dcc8ec91ed71d253715f9f1949701b5d0",
+      "bytes": 6885
+    },
+    "tests/test_context.py": {
+      "sha256": "012ad4e76131619ec78fa731d36b52251edac50d09f9a19d27464355e3ec50b1",
+      "bytes": 4559
+    },
+    "tests/test_controlled.py": {
+      "sha256": "9a753642165a4f3e24393caa1fc9f1cd47ac6200d72bdbfcf36e6d83817ed272",
+      "bytes": 20027
+    },
+    "tests/test_controlled_revision.py": {
+      "sha256": "b0ced911ea75a9a025ca3b18b456110b70d5e29cec4fcf601ad65e2cee0b95cd",
+      "bytes": 6694
+    },
+    "tests/test_corpus.py": {
+      "sha256": "a214644f6e52d78f8f8db08648c39dc5a2bd80d89f433638ed83cca60a7a6be3",
+      "bytes": 8065
+    },
+    "tests/test_eval_comparison.py": {
+      "sha256": "a52260e69a818b6d1403de33b277b481797ebe220e6cb14b0e9e8a7e27927d61",
+      "bytes": 6898
+    },
+    "tests/test_eval_freeze.py": {
+      "sha256": "3c023342f30c3832f2b6b954e45ffbcd383077182a96170c8d6cd91dbb5f68ef",
+      "bytes": 4227
+    },
+    "tests/test_eval_grading.py": {
+      "sha256": "907b732bbc6b57882d86ad72b231b1dcc80a6004be2fcd836b147fa8364a617c",
+      "bytes": 5865
+    },
+    "tests/test_eval_harness.py": {
+      "sha256": "cf80eef0a26633046472bbb264f573ab01983a8f5d6fad6e983350278d69831c",
+      "bytes": 13921
+    },
+    "tests/test_guidance.py": {
+      "sha256": "7d69ed5af45a11fd3ffb2c4dff61d9691463377ae96e17b2542cf40719bd98ea",
+      "bytes": 7297
+    },
+    "tests/test_history_limits.py": {
+      "sha256": "98ed7377c74136cdf9f370323b0364025c3558c377d5217803107f6e35466b91",
+      "bytes": 6889
+    },
+    "tests/test_interpreter.py": {
+      "sha256": "0fdbe054307c8d9d3c11a001d879562b15a50a481014e5a360c3ca510e14ffea",
+      "bytes": 9414
+    },
+    "tests/test_lexical_fallback.py": {
+      "sha256": "6c310fbb31635ee5f112a149210876ea4e227966120f94d0386339046df7ce83",
+      "bytes": 3423
+    },
+    "tests/test_operator_boundary.py": {
+      "sha256": "924f4e4683d74050744faa4461110ea2f374ea1faeeeae856caa1261fdf5d41e",
+      "bytes": 12983
+    },
+    "tests/test_operator_cli.py": {
+      "sha256": "46a198d497d4559cbc00d752c6f576cb73b2a880920056b4e4520d6a9b0624c5",
+      "bytes": 1424
+    },
+    "tests/test_policy.py": {
+      "sha256": "e7f2c39231cdcfd2b653a930c9f2797e3a455baece83a6dd8b59faf7ac58e97a",
+      "bytes": 8624
+    },
+    "tests/test_review.py": {
+      "sha256": "eb4777414ad291a8c4ce7249adb1d2237a7a91cad2ce99bdc2a1b6851423bf77",
+      "bytes": 13428
+    },
+    "tests/test_runtime_controls.py": {
+      "sha256": "80922fc36e78c76817ac7b027a5a1a7fc170d761c9a04a5510d6c4cdcd415a6e",
+      "bytes": 2759
+    },
+    "tests/test_sdk_pin.py": {
+      "sha256": "7c4c6f34da90f9ca9580d40731e3b5c409c3a454415edf0b283a854b49b6497c",
+      "bytes": 2063
+    },
+    "tests/test_tei_import.py": {
+      "sha256": "29118326b29b9c7c2975ad8fa7b511761088fd47b7389a809f905eb6c1dc8b9e",
+      "bytes": 5780
+    },
+    "uv.lock": {
+      "sha256": "c7ab03f71b9c55fab8d57386419fe6d2870bc2370c6a5722aff282bc23afa59d",
+      "bytes": 152717
+    }
+  },
+  "integrity_scope": "local file integrity and declared settings; not proof of host/model enforcement or release acceptance"
+}

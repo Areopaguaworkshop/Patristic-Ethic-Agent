@@ -8,16 +8,16 @@ go to stderr only — stdout carries protocol output or nothing.
 
 Documented limits of native Codex mode:
 
-- FAIL-OPEN: a callback error, timeout or malformed response does NOT
-  block the tool or prompt. This hook exits 0 with empty stdout on every
-  failure path (Codex documents fail-open hook behavior; its default hook
-  timeout is 600 s, the PEA CLI subprocess here is capped at 15 s).
+- FAIL-CLOSED for supported input and pre-tool events: assessment errors,
+  timeouts and malformed results return the host's documented block/deny
+  protocol. Malformed hook JSON and unmapped events remain unassessed.
 - The transcript is NOT parsed: ``transcript_path`` is documented as NOT
-  stable, so ``messages`` stays empty and ``history.complete`` is always
-  false on Codex.
+  stable, so only configured hook-observed history is collected;
+  ``history.complete`` remains false on Codex.
 - Enforcement is best-effort: there is no MessageDisplay event on Codex
-  (no before-display guarantee) and hooks fail open, so strict guarantees
-  require controlled mode / an agent sandbox, not this adapter alone.
+  (no before-display guarantee), and host-level hook termination cannot
+  be controlled by this process. Strict output guarantees require
+  controlled mode / an agent sandbox, not this adapter alone.
 """
 
 from __future__ import annotations
@@ -28,6 +28,8 @@ import subprocess
 import sys
 
 from ..context import EnvelopeError, validate_envelope
+from .history import collect, remember
+from .result import validate_result
 
 HOST_NAME = "codex"
 HOST_VERSION_DEFAULT = "0.160.0"
@@ -70,8 +72,8 @@ def build_envelope(payload: dict) -> dict | None:
     """Codex hook payload -> ContextEnvelope dict; None on any mismatch.
 
     Deliberate mapping choices (documented):
-    - ``messages`` is always empty and ``history.complete`` is always
-      false: the Codex transcript format is unstable and is never parsed.
+    - Configured hook-observed history supplies prior messages; completeness
+      remains false. The unstable Codex transcript is never parsed.
     - Unmapped events (SessionStart, PermissionRequest, anything else)
       return None -> fail-open, no assessment, no output.
     """
@@ -89,7 +91,7 @@ def build_envelope(payload: dict) -> dict | None:
         "host": {"name": HOST_NAME, "version": version, "mode": "native"},
         "session": {"id": session_id},
         "turn": {"id": turn_id, "event_id": turn_id},
-        "messages": [],  # transcript_path is NOT parsed (format unstable)
+        "messages": [],  # populated only from the configured hook history store
         "earlier_excerpts": [],
         "history": {
             "complete": False,
@@ -129,6 +131,7 @@ def build_envelope(payload: dict) -> dict | None:
     else:
         return None
 
+    collect(envelope)
     try:
         validate_envelope(envelope)
     except (EnvelopeError, ValueError):
@@ -196,7 +199,7 @@ def _run_cli(envelope: dict) -> dict:
     """Default runner: spawn the frozen CLI, parse its AssessResult line.
 
     Raises on any failure (non-zero exit, timeout, unparseable stdout) so
-    main() can fail open with a stderr diagnostic. PEA_BACKEND/PEA_DB/
+    handle() can block supported input/pre-tool events. PEA_BACKEND/PEA_DB/
     PEA_POLICY are passed through as CLI flags; the child inherits the
     environment. stdlib + package-core only: no mcp/ollama import here.
     """
@@ -234,28 +237,31 @@ def _run_cli(envelope: dict) -> dict:
 def handle(payload: dict, runner=None) -> dict | None:
     """Offline-testable core: hook payload -> protocol dict, or None.
 
-    Never prints. ``runner`` receives the built envelope dict and returns
-    an AssessResult dict; a ``runner`` result without a string ``action``
-    is treated as a failure (fail-open -> None). Runner exceptions
-    propagate to main(), which fails open with a stderr diagnostic.
+    Runner failures return a blocking protocol for supported input and
+    pre-tool events; events that cannot block an already executed tool or
+    displayed output remain best-effort.
     """
     envelope = build_envelope(payload)
     if envelope is None:
         return None
     if runner is None:
         runner = _run_cli  # module global: tests inject a fake here
-    result = runner(envelope)
-    if not isinstance(result, dict) or not isinstance(result.get("action"), str):
-        return None
+    try:
+        result = validate_result(runner(envelope))
+    except Exception as exc:
+        print(f"pea-codex: assessment failed; blocking supported hook: {exc}", file=sys.stderr)
+        return decide({"action": "withhold", "guidance": {"text": "PEA assessment unavailable; this request or tool call is blocked."}}, payload)
+    remember({**envelope, "_hook_event": payload.get("hook_event_name"),
+              "_hook_event_id": payload.get("turn_id") or payload.get("prompt_id")}, result["action"])
     return decide(result, payload)
 
 
 def main(argv: list[str] | None = None) -> int:
     """Hook entry point. Codex passes the payload on stdin; argv is unused.
 
-    Every failure path (malformed stdin, runner failure, runner timeout)
-    exits 0 with NO stdout — documented fail-open; Codex must never treat
-    a PEA problem as a block. Stdout carries at most one protocol line.
+    Supported input and pre-tool events block on assessment failure.
+    Malformed input cannot be mapped safely and exits 0 without protocol
+    output. Stdout carries at most one protocol line.
     """
     del argv  # hook commands take no arguments; parity with cli.main
     try:
@@ -268,8 +274,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     try:
         out = handle(payload)
-    except Exception as e:  # runner failure/timeout -> fail-open
-        print(f"pea-codex: assess failed (fail-open): {e}", file=sys.stderr)
+    except Exception as e:  # malformed adapter state: no trusted event mapping
+        print(f"pea-codex: hook failed before a decision: {e}", file=sys.stderr)
         return 0
     if out is not None:
         print(json.dumps(out, ensure_ascii=False))

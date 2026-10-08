@@ -2,6 +2,7 @@
 hash checking, SQLite FTS5 build/search, and quote fidelity."""
 
 import json
+import sqlite3
 
 import pytest
 
@@ -115,6 +116,25 @@ def test_validate_verified_with_null_text():
     assert any("text is null" in p for p in problems)
 
 
+def test_validate_review_state_is_closed_and_only_verified_text_can_be_reviewed():
+    assert any("invalid review_status" in p for p in validate_units(as_units({"review_status": "owner-ish"})))
+    assert any("reviewed unit requires verified source text" in p for p in validate_units(
+        as_units({"review_status": "reviewed", "retrieval_verified": False})
+    ))
+    assert validate_units(as_units({"review_status": "reviewed"})) == []
+
+
+@pytest.mark.parametrize("override,problem", [
+    ({"text": ["bad"]}, "text must be a string or null"),
+    ({"retrieval_verified": "yes"}, "retrieval_verified must be boolean"),
+    ({"principle_ids": ["PEA-P99"]}, "principle_ids must contain PEA principle IDs"),
+    ({"source_url": "file:///etc/passwd"}, "invalid source_url"),
+    ({"retrieved": "yesterday"}, "retrieved must be an ISO date"),
+])
+def test_validate_rejects_malformed_provenance(override, problem):
+    assert any(problem in p for p in validate_units(as_units(override)))
+
+
 def test_build_db_and_fts_search(tmp_path):
     seed = write_seed(
         tmp_path,
@@ -187,3 +207,27 @@ def test_build_db_rejects_problems(tmp_path):
     seed = write_seed(tmp_path, [unit(), unit()])  # duplicate id
     with pytest.raises(ValueError, match="duplicate id"):
         build_db(seed, tmp_path / "corpus.db")
+
+
+def test_failed_rebuild_preserves_index_and_removes_staged_file(tmp_path, monkeypatch):
+    from patristic_ethics import corpus
+
+    seed = write_seed(tmp_path, [unit()])
+    db = build_db(seed, tmp_path / "corpus.db")
+    original = db.read_bytes()
+    monkeypatch.setattr(corpus, "_INSERT_UNITS_SQL", "INSERT INTO missing_table VALUES (?)")
+    with pytest.raises(sqlite3.OperationalError):
+        build_db(seed, db)
+    assert db.read_bytes() == original
+    assert get_passage(db, "u-test-001").text == THEFT
+    assert not list(tmp_path.glob(".corpus.db.*"))
+
+
+def test_successful_rebuild_replaces_old_rows(tmp_path):
+    seed = write_seed(tmp_path, [unit()])
+    db = build_db(seed, tmp_path / "corpus.db")
+    write_seed(tmp_path, [unit(id="u-test-002")])
+    assert build_db(seed, db) == db
+    assert get_passage(db, "u-test-001") is None
+    assert get_passage(db, "u-test-002").text == THEFT
+    assert not list(tmp_path.glob(".corpus.db.*"))

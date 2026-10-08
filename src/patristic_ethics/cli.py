@@ -42,11 +42,20 @@ def _result_payload(result) -> dict:
     }
 
 
+def positive_context_length(value: str) -> int:
+    length = int(value)
+    if length <= 0:
+        raise argparse.ArgumentTypeError("context length must be positive")
+    return length
+
+
 def _build_interpreter(args):
     if args.backend == "fake":
         # Empty script: FakeInterpreter defaults to a benign observation.
         return FakeInterpreter([])
-    return OllamaInterpreter(model=args.model, host=args.host, timeout_s=args.timeout)
+    return OllamaInterpreter(model=args.model, host=args.host, timeout_s=args.timeout,
+                             num_ctx=args.context_length,
+                             think={"model-default": None, "on": True, "off": False}[args.thinking])
 
 
 def _cmd_assess(args) -> int:
@@ -143,6 +152,10 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--model", default=DEFAULT_MODEL)
     p.add_argument("--host", default=DEFAULT_HOST)
     p.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT)
+    p.add_argument("--context-length", type=positive_context_length, default=None,
+                   help="Ollama interpreter context length; default uses model settings")
+    p.add_argument("--thinking", choices=["model-default", "on", "off"], default="model-default",
+                   help="Ollama interpreter thinking mode")
     p.set_defaults(func=_cmd_assess)
 
     c = sub.add_parser("corpus", help="seed corpus tools")

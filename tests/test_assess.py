@@ -13,6 +13,7 @@ from patristic_ethics.assess import assess
 from patristic_ethics.context import build_envelope, validate_envelope
 from patristic_ethics.corpus import build_db, sha256_text
 from patristic_ethics.interpreter import (
+    Evidence,
     FakeInterpreter,
     InterpreterFailure,
     InterpreterUnavailable,
@@ -323,13 +324,34 @@ def test_pre_action_appends_action_json(tmp_path):
         def interpret(self, e):
             seen["request"] = e.request
             seen["stage"] = e.stage
-            return BENIGN_OBS.model_copy(deep=True)
+            seen["action"] = e.proposed_action
+            obs = BENIGN_OBS.model_copy(deep=True)
+            obs.evidence = [Evidence(source_id="current_request", quote="do it")]
+            return obs
 
     result = assess(env, interpreter=Spy(), policy_doc=_policy_doc(), db_path=_db(tmp_path))
-    assert "Proposed action" in seen["request"]
-    assert "shell" in seen["request"]
+    assert seen["request"] == "do it"
+    assert seen["action"].tool == "shell"
     assert env.request == "do it"  # envelope untouched
     assert result.action == "proceed"
+
+
+def test_pre_action_evidence_can_quote_proposed_arguments(tmp_path):
+    env = build_envelope(
+        request="clean up temporary files",
+        stage="pre_action",
+        proposed_action={"tool": "shell", "arguments": {"cmd": "rm -rf /tmp/x"}},
+    )
+
+    class Spy:
+        def interpret(self, envelope):
+            obs = BENIGN_OBS.model_copy(deep=True)
+            obs.evidence = [Evidence(source_id="proposed_action", quote="rm -rf /tmp/x")]
+            return obs
+
+    result = assess(env, interpreter=Spy(), policy_doc=_policy_doc(), db_path=_db(tmp_path))
+    assert result.action == "proceed"
+    assert result.failure is None
 
 
 # --- multiturn fixture ---

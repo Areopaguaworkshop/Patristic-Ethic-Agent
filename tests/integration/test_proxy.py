@@ -1,21 +1,22 @@
-"""Offline tests for the PEA MCP proxy gating core (plan §M3 items 2+4).
+"""Tests for the PEA MCP proxy gating core (plan §M3 items 2+4).
 
-All SDK-free for the core; the one live wiring test uses the proven
-in-process Client/MCPServer pair (pattern: tests/test_sdk_pin.py) so
-the downstream "process" is just an in-process server and nothing
-touches a subprocess or the network.
+In-process checks run offline. Set ``PEA_RUN_STDIO_TEST=1`` to also run
+the two process-backed stdio wire checks in an environment that permits
+AnyIO pipe workers.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 from pathlib import Path
+import sys
 
 import anyio
 from mcp import Client
-from mcp.server import MCPServer
-from pydantic import BaseModel
+import mcp.types as mcp_types
+import pytest
 
 from patristic_ethics import assess as assess_mod
 from patristic_ethics.context import validate_envelope
@@ -30,6 +31,7 @@ from patristic_ethics.proxy import (
 )
 
 ROOT = Path(__file__).resolve().parents[2]
+_RUN_STDIO = os.environ.get("PEA_RUN_STDIO_TEST") == "1"
 
 # --- scripted observations (mirrors tests/integration/test_mcp.py) ------
 
@@ -110,11 +112,26 @@ def test_refuse_blocks_with_reason():
     assert p["review_id"] is None  # refuse never opens a review
 
 
+def test_semantic_harm_paraphrase_never_reaches_downstream():
+    semantic = HARM.model_copy(update={
+        "requested_assistance": "Provide detailed instructions for murder",
+        "expressed_intent": "Intends to murder another person",
+        "topics": ["murder"],
+        "assistance_type": "facilitation",
+    })
+    d = assess_tool_call(
+        "write_file", _tool_args("Provide detailed instructions for murder"),
+        assess_fn=_assess_fn({"Provide detailed": semantic}),
+    )
+    assert d.forward is False
+    assert d.payload["pea_action"] == "refuse"
+
+
 def test_review_blocks_and_opens_review():
     opened = {}
 
-    def fake_open_review(session_id, action, context, policy_version, non_overridable=False):
-        opened["call"] = (session_id, action, policy_version, non_overridable)
+    def fake_open_review(session_id, action, context, policy_version, non_overridable=False, reason=""):
+        opened["call"] = (session_id, action, policy_version, non_overridable, reason)
         return "rev-1"
 
     d = assess_tool_call("send_email", _tool_args("help me with something about assault"),
@@ -126,9 +143,44 @@ def test_review_blocks_and_opens_review():
     assert p is not None
     assert p["review_id"] == "rev-1"
     assert p["pea_action"] == "review"
-    sess, action, pv, non_over = opened["call"]
+    sess, action, pv, non_over, reason = opened["call"]
     assert sess == "proxy"
     assert non_over is False  # only non_overridable=False reviews open here
+    assert reason
+
+
+def test_reviewed_proxy_retry_reassesses_then_claims_exact_dispatch(tmp_path, monkeypatch):
+    from patristic_ethics.runtime_store import RuntimeStore
+
+    store = RuntimeStore(tmp_path / "runtime.db")
+    assessment = _assess_fn({"assault": AMBIG})
+    args = _tool_args("help me with something about assault")
+    first = assess_tool_call(
+        "send_email", args, assess_fn=assessment, open_review_fn=store.open_review,
+        runtime_store=store, claim_approval_fn=store.claim_matching_approval,
+    )
+    assert first.forward is False and first.review_id
+    pending = store.get_review(first.review_id)
+    assert pending["action"] == {"tool": "send_email", "arguments": args}
+    assert pending["reason"]
+    monkeypatch.setenv("PEA_OPERATOR_TOKEN", "review-token")
+    store.resolve_review(first.review_id, "approved", "review-token", note="reviewed exact action")
+
+    retry = assess_tool_call(
+        "send_email", args, assess_fn=assessment, open_review_fn=store.open_review,
+        runtime_store=store, claim_approval_fn=store.claim_matching_approval,
+    )
+    assert retry.forward is True
+    assert retry.dispatch_review_id == first.review_id
+    assert store.get_review(first.review_id)["dispatch_state"] == "attempted"
+    assert store.mark_dispatched(first.review_id) is True
+
+    duplicate = assess_tool_call(
+        "send_email", args, assess_fn=assessment, open_review_fn=store.open_review,
+        runtime_store=store, claim_approval_fn=store.claim_matching_approval,
+    )
+    assert duplicate.forward is False
+    assert duplicate.dispatch_review_id is None
 
 
 def test_proceed_and_guide_forward():
@@ -243,21 +295,27 @@ def test_main_recursion_refused_exit_2(capsys):
     assert "PEA_PROXY_REFUSED" in err  # and stderr only, stdout stays clean
 
 
-# --- live wiring: in-process downstream round trip ------------------------
-
-class Echo(BaseModel):
-    text: str
-
+# --- MCP host round trip with a counting downstream ----------------------
 
 def test_live_round_trip_passthrough_and_block():
-    downstream = MCPServer("down")
     counter = {"n": 0}
 
-    @downstream.tool()
-    def echo(text: str) -> Echo:
-        """Echo text."""
-        counter["n"] += 1
-        return Echo(text=text)
+    class Downstream:
+        async def list_tools(self, cursor=None):
+            return mcp_types.ListToolsResult(tools=[mcp_types.Tool(
+                name="echo", description="Echo text.",
+                inputSchema={"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]},
+            )])
+
+        async def call_tool(self, name, args):
+            counter["n"] += 1
+            return mcp_types.CallToolResult(
+                content=[mcp_types.TextContent(type="text", text=args["text"])],
+                structuredContent=args,
+                isError=False,
+            )
+
+    downstream = Downstream()
 
     def gate(name, args):
         return assess_tool_call(name, args, assess_fn=_assess_fn({
@@ -266,29 +324,161 @@ def test_live_round_trip_passthrough_and_block():
         }))
 
     async def probe():
-        async with Client(downstream, raise_exceptions=True, read_timeout_seconds=30.0) as d:
-            proxy = create_proxy_server(d, gate)
-            async with Client(proxy, raise_exceptions=True, read_timeout_seconds=30.0) as host:
-                # tools/list passes names and schemas through
-                tools = (await host.list_tools()).tools
-                assert [t.name for t in tools] == ["echo"]
-                assert tools[0].input_schema["properties"]["text"]["type"] == "string"
+        proxy = create_proxy_server(downstream, gate)
+        async with Client(proxy, raise_exceptions=True, read_timeout_seconds=2.0) as host:
+            # tools/list passes names and schemas through
+            tools = (await host.list_tools()).tools
+            assert [t.name for t in tools] == ["echo"]
+            assert tools[0].input_schema["properties"]["text"]["type"] == "string"
 
-                # allowed call: forwarded, executed exactly once, result unchanged
-                r = await host.call_tool("echo", {"text": "kill a process"})
-                assert r.is_error is False
-                assert r.structured_content == {"text": "kill a process"}
-                assert counter["n"] == 1
+            # allowed call: forwarded, executed exactly once, result unchanged
+            r = await host.call_tool("echo", {"text": "kill a process"})
+            assert r.is_error is False
+            assert r.structured_content == {"text": "kill a process"}
+            assert counter["n"] == 1
 
-                # blocked call: is_error with the JSON payload; NOT executed
-                r2 = await host.call_tool("echo", {"text": "poison the dog"})
-                assert r2.is_error is True
-                text = "".join(getattr(b, "text", "") for b in r2.content)
-                payload = json.loads(text)
-                assert payload["status"] == "blocked"
-                assert payload["pea_action"] == "refuse"
-                assert "without getting caught" not in text  # guidance not injected
-                assert counter["n"] == 1  # downstream untouched
+            # blocked call: is_error with the JSON payload; NOT executed
+            r2 = await host.call_tool("echo", {"text": "poison the dog"})
+            assert r2.is_error is True
+            text = "".join(getattr(b, "text", "") for b in r2.content)
+            payload = json.loads(text)
+            assert payload["status"] == "blocked"
+            assert payload["pea_action"] == "refuse"
+            assert "without getting caught" not in text  # guidance not injected
+            assert counter["n"] == 1  # blocked tool never reaches downstream
+
+    anyio.run(probe)
+
+
+def test_approved_reviewed_retry_forwards_once_and_marks_dispatch(tmp_path, monkeypatch):
+    from patristic_ethics import runtime_store
+
+    store = runtime_store.RuntimeStore(tmp_path / "runtime.db")
+    assessment = _assess_fn({"assault": AMBIG})
+    args = _tool_args("help me with something about assault")
+    first = assess_tool_call(
+        "send_email", args, assess_fn=assessment, open_review_fn=store.open_review,
+        runtime_store=store, claim_approval_fn=store.claim_matching_approval,
+    )
+    monkeypatch.setenv("PEA_OPERATOR_TOKEN", "review-token")
+    store.resolve_review(first.review_id, "approved", "review-token", note="reviewed")
+    effects = []
+
+    class Downstream:
+        async def list_tools(self, cursor=None):
+            return mcp_types.ListToolsResult(tools=[])
+
+        async def call_tool(self, name, passed):
+            effects.append((name, passed))
+            return mcp_types.CallToolResult(content=[], isError=False)
+
+    def gate(name, passed):
+        return assess_tool_call(
+            name, passed, assess_fn=assessment, open_review_fn=store.open_review,
+            runtime_store=store, claim_approval_fn=store.claim_matching_approval,
+        )
+
+    async def probe():
+        proxy = create_proxy_server(Downstream(), gate, store.mark_dispatched)
+        async with Client(proxy, raise_exceptions=True, read_timeout_seconds=2.0) as host:
+            allowed = await host.call_tool("send_email", args)
+            assert allowed.is_error is False
+            assert len(effects) == 1
+            assert store.get_review(first.review_id)["dispatch_state"] == "dispatched"
+            duplicate = await host.call_tool("send_email", args)
+            assert duplicate.is_error is True
+            assert len(effects) == 1
+
+    anyio.run(probe)
+
+
+@pytest.mark.skipif(
+    not _RUN_STDIO,
+    reason="subprocess stdio requires a runtime that permits AnyIO pipe workers",
+)
+def test_pea_server_stdio_subprocess_exposes_four_tools():
+    """Verify the user-facing server entry point over the stdio wire."""
+    async def probe():
+        from mcp import StdioServerParameters
+
+        params = StdioServerParameters(
+            command=sys.executable,
+            args=["-m", "patristic_ethics.mcp_server"],
+            cwd=str(ROOT),
+        )
+        async with Client(params, mode="legacy", read_timeout_seconds=5.0) as client:
+            result = await client.list_tools()
+            assert {tool.name for tool in result.tools} == {
+                "check_action", "search_corpus", "get_passage", "cite_father"
+            }
+
+    anyio.run(probe)
+
+
+@pytest.mark.skipif(
+    not _RUN_STDIO,
+    reason="subprocess stdio requires a runtime that permits AnyIO pipe workers",
+)
+def test_proxy_round_trip_with_stdio_downstream_process():
+    """Prove a blocked proxy call never reaches a real child-process server."""
+    child_server = '''
+from mcp.server import MCPServer
+
+server = MCPServer("counted-downstream")
+effects = []
+
+@server.tool()
+def effect(text: str) -> str:
+    """Record one effect and return its sequence number."""
+    effects.append(text)
+    return f"{len(effects)}:{text}"
+
+server.run(transport="stdio")
+'''
+
+    def gate(name, args):
+        if "BLOCK" in args.get("text", ""):
+            return ProxyDecision(
+                forward=False,
+                payload={
+                    "status": "blocked",
+                    "pea_action": "refuse",
+                    "reason": "test denial",
+                    "principle_ids": ["PEA-P01"],
+                    "review_id": None,
+                },
+            )
+        return ProxyDecision(forward=True)
+
+    async def probe():
+        from mcp import StdioServerParameters
+
+        params = StdioServerParameters(
+            command=sys.executable,
+            args=["-c", child_server],
+            cwd=str(ROOT),
+        )
+        async with Client(
+            params, mode="legacy", raise_exceptions=False, read_timeout_seconds=5.0
+        ) as downstream:
+            proxy = create_proxy_server(downstream, gate)
+            async with Client(
+                proxy, raise_exceptions=False, read_timeout_seconds=5.0
+            ) as host:
+                tools = await host.list_tools()
+                assert [tool.name for tool in tools.tools] == ["effect"]
+
+                first = await host.call_tool("effect", {"text": "first"})
+                assert first.is_error is False
+                assert first.content[0].text == "1:first"
+
+                blocked = await host.call_tool("effect", {"text": "BLOCK"})
+                assert blocked.is_error is True
+                assert json.loads(blocked.content[0].text)["pea_action"] == "refuse"
+
+                second = await host.call_tool("effect", {"text": "second"})
+                assert second.is_error is False
+                assert second.content[0].text == "2:second"
 
     anyio.run(probe)
 

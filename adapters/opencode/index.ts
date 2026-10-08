@@ -22,14 +22,12 @@
  * - Covered tools only: the gate applies to `tool.execute.before` for host
  *   tools enabled in the profile; uncovered paths (other tools, subagents,
  *   background jobs, interactive continuation) run ungated.
- * - Fail-open on hook failure: any CLI failure or timeout injects nothing
- *   and blocks nothing; the failure is logged (pea_cli_failure). This is
- *   the documented native-mode tradeoff — use M4b when fail-open is
- *   unacceptable.
+ * - On hook failure, input guidance is advisory and injects nothing.
+ *   Covered pre-tool events block on CLI failure, invalid result or timeout
+ *   while the hook process can respond. Native output remains ungated.
  *
- * Recursion guard: tool calls whose name starts with "pea" or whose args
- * mention the PEA CLI are skipped — a private adapter path, never an
- * agent-supplied bypass flag.
+ * The CLI call is made directly by this adapter; user-controlled tool names
+ * and arguments never bypass assessment.
  *
  * This file never writes to stdout (no console.log anywhere) and never
  * throws out of a hook except the deliberate tool-gate block.
@@ -206,8 +204,13 @@ async function runCli(cfg: Config, client: any, envelope: any, hook: string): Pr
     return null
   }
   const result = firstJsonObject(stdout)
-  if (result === null || typeof result.action !== "string") {
-    logLine(cfg, client, { hook, type: "pea_cli_failure", detail: "no AssessResult JSON on stdout" })
+  if (
+    result === null
+    || !["proceed", "guide", "refuse", "clarify", "review", "withhold"].includes(result.action)
+    || (["proceed", "guide"].includes(result.action) && result.failure != null)
+    || (result.action === "proceed" && result.decision != null && result.decision.disposition !== "allow")
+  ) {
+    logLine(cfg, client, { hook, type: "pea_cli_failure", detail: "invalid AssessResult JSON on stdout" })
     return null
   }
   return result
@@ -241,14 +244,27 @@ async function buildInputEnvelope(
   fallbackTurnID?: string
 ): Promise<any> {
   const errors: string[] = []
+  const omitted: string[] = []
   let messages: any[] = []
-  let complete = false
+  const complete = false
   let turnID = fallbackTurnID ?? ""
   try {
     const res = await client?.session?.messages?.({ path: { id: sessionID } })
     if (Array.isArray(res?.data)) {
-      complete = true
       messages = mapMessages(res.data)
+      errors.push("text-only host snapshot; earlier compacted messages and nontext content may be missing")
+      if (messages.length !== res.data.length) errors.push("some host rows had no usable text or message identity")
+      let size = 0
+      const chosen: any[] = []
+      for (const message of messages.toReversed()) {
+        if (chosen.length >= 40 || size + message.text.length > 16000) break
+        chosen.push(message)
+        size += message.text.length
+      }
+      if (chosen.length !== messages.length) {
+        omitted.push("earlier or overlong host messages omitted; recent window limited to 40 messages / 16000 characters")
+      }
+      messages = chosen.reverse()
       const last = res.data[res.data.length - 1]
       if (last?.info?.id) turnID = last.info.id
     } else {
@@ -269,7 +285,7 @@ async function buildInputEnvelope(
     earlier_excerpts: [],
     history: {
       complete,
-      omitted_ranges: [],
+      omitted_ranges: omitted,
       collection_errors: errors,
       modalities: messages.length ? ["text"] : [],
     },
@@ -279,26 +295,27 @@ async function buildInputEnvelope(
   }
 }
 
-/** Pre-action envelope for a proposed tool call (history intentionally not collected). */
-function buildPreActionEnvelope(sessionID: string, callID: string, tool: string, args: any): any {
+/** Pre-action envelope for a proposed tool call (same session context). */
+async function buildPreActionEnvelope(sessionID: string, callID: string, tool: string, args: any, client: any): Promise<any> {
+  const conversation = await buildInputEnvelope(sessionID, "", client)
   return {
     schema_version: "1",
     host: { name: "opencode", version: "1.18.x", mode: "native" },
     session: { id: sessionID },
     turn: { id: callID || "call-" + sessionID },
     stage: "pre_action",
-    request: "Tool call: " + tool,
-    messages: [],
-    earlier_excerpts: [],
+    request: conversation.messages.findLast((message: any) => message.role === "user")?.text ?? "Tool call: " + tool,
+    messages: conversation.messages,
+    earlier_excerpts: conversation.earlier_excerpts,
     proposed_action: { tool, arguments: args ?? {} },
-    history: { complete: false, omitted_ranges: [], collection_errors: [], modalities: [] },
+    history: conversation.history,
     policy_version: "0.1.0-draft",
     corpus_version: "0.1.0-draft",
     language: "en",
   }
 }
 
-const GATE_ACTIONS = new Set(["refuse", "clarify", "review"])
+const GATE_ACTIONS = new Set(["refuse", "clarify", "review", "withhold"])
 const INJECT_ACTIONS = new Set(["refuse", "guide", "clarify", "review"])
 
 export const PeaEthics: Plugin = async ({ client }) => {
@@ -343,23 +360,12 @@ export const PeaEthics: Plugin = async ({ client }) => {
       try {
         if (!cfg.enabled) return
         const tool = input?.tool ?? ""
-        // Recursion guard: private adapter path only — no agent-supplied
-        // bypass flag. Skip PEA's own tools and any attempt to run the
-        // PEA CLI itself through a host tool.
-        let argsJson = ""
-        try {
-          argsJson = JSON.stringify(output?.args ?? {})
-        } catch {
-          argsJson = ""
-        }
-        if (tool.startsWith("pea") || argsJson.includes("patristic_ethics.cli") || argsJson.includes("pea assess")) {
-          logLine(cfg, client, { hook: "tool.execute.before", tool, skipped: "recursion_guard" })
-          return
-        }
         const sessionID = input?.sessionID ?? ""
-        const envelope = buildPreActionEnvelope(sessionID, input?.callID ?? "", tool, output?.args)
+        const envelope = await buildPreActionEnvelope(sessionID, input?.callID ?? "", tool, output?.args, client)
         const result = await runCli(cfg, client, envelope, "tool.execute.before")
-        if (!result) return // fail-open, already logged
+        if (!result) {
+          throw new Error(PEA_PREFIX + "assessment unavailable; tool call withheld")
+        }
         if (GATE_ACTIONS.has(result.action)) {
           const guidance = typeof result?.guidance?.text === "string" ? result.guidance.text : ""
           logLine(cfg, client, {
@@ -376,6 +382,7 @@ export const PeaEthics: Plugin = async ({ client }) => {
       } catch (e: any) {
         if (e instanceof Error && e.message.startsWith(PEA_PREFIX)) throw e
         logLine(cfg, client, { hook: "tool.execute.before", type: "pea_hook_error", detail: String(e) })
+        throw new Error(PEA_PREFIX + "assessment failed; tool call withheld")
       }
     },
     "tool.execute.after": async (input, output) => {

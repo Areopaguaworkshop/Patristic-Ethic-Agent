@@ -1,6 +1,6 @@
 # Host Coverage Record — PEA (Patristic Ethics Agent)
 
-Date: 2026-10-06
+Date: 2026-10-07
 PEA version: 0.0.1 (M0)
 Scope: integration-boundary capability of candidate agent hosts, as probed or
 as supported by pinned source. No capability is claimed beyond observed
@@ -8,14 +8,14 @@ evidence or pinned source; uncertain items are marked "unverified".
 
 ## Capability Matrix
 
-| Capability | OpenCode 1.18.34 (probed) | Codex CLI 0.160.0 (unverified — planned M5) | Claude Code 2.1.286 (unverified — planned M5) |
+| Capability | OpenCode 1.18.34 (live-probed) | Codex CLI 0.160.0 (synthetic CLI trace; no live host probe) | Claude Code 2.1.286/287 (synthetic CLI trace; no live host probe) |
 |---|---|---|---|
-| Context collection | Native `chat.message` hook + session message fetch (probe: hook fired; see evidence S1) | unverified | unverified |
-| Pre-action control | `tool.execute.before` throw gates **covered tools only**; never-approval-prompt caveat (probe: blocked call skipped `tool.execute.after`; see evidence S2) | unverified | unverified |
-| Before-display guarantee | **Not achievable natively.** `experimental.text.complete` fires after text deltas are already published (source-confirmed) | unverified | unverified |
-| Controlled display path | Requires a PEA-owned client consuming `opencode run --format json` (by design in M0; not yet probed end-to-end) | unverified | unverified |
-| Failure behavior | Hook failures on unverified paths fail-open (documented here; `chat.message` throw is undocumented) | unverified | unverified |
-| Unsupported/unverified paths | `experimental.text.complete` for withholding display; `chat.message` blocking via throw | unverified | unverified |
+| Context collection | Native `chat.message` hook + session message fetch (probe: hook fired; see evidence S1) | Current prompt/tool payload only; transcript path is documented unstable and is not parsed (`history.complete=false`) | Current hook payload only; transcript serialization is not specified by the hook contract and is not parsed (`history.complete=false`) |
+| Pre-action control | `tool.execute.before` throw gates **covered tools only**; never-approval-prompt caveat (probe: blocked call skipped `tool.execute.after`; see evidence S2) | `PreToolUse` deny for supported events while the hook process responds; researched, not live-probed | `PreToolUse` deny for matched tools while the hook process responds; contract verified, not live-probed |
+| Before-display guarantee | **Not achievable natively.** `experimental.text.complete` fires after text deltas are already published (source-confirmed) | **No** MessageDisplay event; no native withholding | **No.** MessageDisplay changes UI only, not transcript/model context |
+| Controlled display path | PEA-owned client buffers `opencode run --format json` output and assesses before release; synthetic evidence is in `tests/test_controlled.py` and `tests/fixtures/opencode_probe/evidence/S5_controlled.txt`. Admin-managed config precedence still needs live verification. | unsupported: App Server schema exposes no all-tools disable field; runtime probe could not start in this managed sandbox. Do not claim controlled Codex support. | `pea-controlled-claude` buffers JSON output with built-in tools, MCP, non-managed hooks/plugins, and session persistence disabled; synthetic tests pass, managed policy and live host probe pending |
+| Failure behavior | Hook failures on unverified paths fail-open (documented here; `chat.message` throw is undocumented) | Supported prompt/pre-tool events block on evaluator failure while the hook process responds; host process death and unsupported events remain outside the adapter | Supported prompt/pre-tool events deny on evaluator failure while the hook process responds; host timeout/termination remains outside the adapter |
+| Unsupported/unverified paths | `experimental.text.complete` for withholding display; `chat.message` blocking via throw | Prior-turn transcript context; live hook behavior; App Server controlled mode | Native prior-turn transcript context; live native/controlled host behavior; controlled CLI requires API-key authentication in `--bare` mode |
 
 ## OpenCode 1.18.34 — probe details
 
@@ -80,9 +80,47 @@ full probe ran successfully on `ollama/deepseek-v4.1-flash:cloud`:
   controlled profiles: local-model profiles will need a tool-schema subset
   or a larger local model. Cloud-fallback models work today.
 
+## 2026-10-07 Codex App Server check
+
+Installed executable reports `codex-cli 0.160.0`; `codex app-server --help`
+offers approval/sandbox configuration and `codex features list` exposes an
+individual `shell_tool` feature toggle. These are not a documented global
+tool-denial contract. The official App Server `ToolsV2` schema exposes only
+`web_search`, and `TurnStartParams` has no per-turn tool allowlist. The direct
+JSONL initialize probe exited before protocol startup because this managed
+Linux sandbox cannot create the user namespaces required by Codex's sandbox;
+the configured `~/.codex` state directory is also read-only. Therefore the
+App Server's live events, runtime tool inventory, and end-to-end withholding
+behavior remain unverified. Approval policy is not described as tool
+disabling. Codex controlled mode stays unsupported pending a preventive
+boundary and repeatable live probe.
+
+Schema references checked 2026-10-07:
+- [Codex App Server ConfigReadResponse schema](https://github.com/openai/codex/blob/main/codex-rs/app-server-protocol/schema/json/v2/ConfigReadResponse.json)
+- [Codex App Server TurnStartParams schema](https://github.com/openai/codex/blob/main/codex-rs/app-server-protocol/schema/typescript/v2/TurnStartParams.ts)
+
 ## Legend
 
 - **probed**: observed in a live run via this repo's probe assets.
 - **source-confirmed**: behavior read from the pinned host source at the
   pinned version.
 - **unverified**: no probe or source evidence yet; treat as absent until probed.
+
+## Offline native-hook traces
+
+`tests/integration/test_host_contracts.py::test_native_hook_stdio_synthetic_refusal_trace`
+feeds the documented `UserPromptSubmit` JSON shape to each adapter's real
+module entry point, runs the PEA CLI with the deterministic fake backend, and
+checks one protocol JSON line with a blocking decision. Run with:
+
+    .venv/bin/pytest -q tests/integration/test_host_contracts.py
+
+This proves the adapter's stdin → context mapping → PEA decision → stdout
+protocol path without paid inference. It does not invoke Codex or Claude Code,
+so live event delivery, host enforcement, and process-failure behavior remain
+unverified at those hosts. OpenCode's separate live probe evidence remains in
+`tests/fixtures/opencode_probe/evidence/`.
+
+## Shared native conformance — 2026-10-08
+
+[The 23-case shared matrix](evaluation/host-conformance.md) now runs across Codex, Claude and OpenCode adapters with scripted results and session fixtures. Invalid/missing/unknown actions and failed/conflicting forward assessments block supported Python prompt/tool events and OpenCode covered tool events. All 69 host/scenario combinations pass, including zero OpenCode local mock effects on blocked pre-tool cases. This is synthetic adapter evidence; native advisory input, post-display limits and unsupported paths remain distinct from controlled support and live-host acceptance.

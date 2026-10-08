@@ -65,6 +65,7 @@ class Excerpt(BaseModel):
 
 
 class Summary(BaseModel):
+    source_id: str = "summary"
     text: str
     refs: list[str]
 

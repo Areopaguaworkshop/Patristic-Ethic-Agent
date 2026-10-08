@@ -67,6 +67,7 @@ import hashlib
 import json
 import shlex
 import sys
+import uuid
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -91,6 +92,7 @@ class ProxyDecision:
     payload: dict | None = None
     context_limited: bool = True
     review_id: str | None = None
+    dispatch_review_id: str | None = None
 
 
 def _event_id(session_id: str, name: str, args: dict) -> str:
@@ -125,6 +127,7 @@ def assess_tool_call(
     assess_fn: Callable[[Any], Any],
     open_review_fn: Callable[..., str] | None = None,
     runtime_store: Any = None,
+    claim_approval_fn: Callable[..., str | None] | None = None,
     session_id: str = "proxy",
     allowlist: set[str] | None = None,
 ) -> ProxyDecision:
@@ -155,7 +158,9 @@ def assess_tool_call(
         "session": {"id": session_id},
         "turn": {"id": "proxy-" + eid[:16]},
         "stage": "pre_action",
-        "request": f"Tool call: {name}",
+        # Keep the proposed operation in the evidence-bearing request too;
+        # native hosts may separately provide the current user objective.
+        "request": f"Tool call: {name}\nArguments: {json.dumps(args, sort_keys=True)}",
         "messages": [],
         "earlier_excerpts": [],
         "proposed_action": {"tool": name, "arguments": args},
@@ -200,14 +205,35 @@ def assess_tool_call(
         return ProxyDecision(forward=True, payload=None, context_limited=True)
 
     review_id = None
+    # Bind human review to the exact proposed tool operation. Host dialogue
+    # is unavailable on this MCP proxy path and is explicitly marked limited.
+    reviewed_action = {"tool": name, "arguments": args}
+    reviewed_context = {"session_id": session_id, "context_limited": True}
+    policy_version = audit.get("policy_version", "")
     if action == "review" and open_review_fn is not None:
+        if claim_approval_fn is not None:
+            try:
+                claimed = claim_approval_fn(
+                    session_id, reviewed_action, reviewed_context, policy_version
+                )
+            except Exception:
+                claimed = None
+            if claimed:
+                _record(runtime_store, eid, session_id, action,
+                        decision.disposition if decision is not None else action,
+                        principle_ids, audit)
+                return ProxyDecision(
+                    forward=True, payload=None, context_limited=True,
+                    dispatch_review_id=claimed,
+                )
         try:
             review_id = open_review_fn(
                 session_id,
-                {"action": action, "reason": reason},
-                {"tool": name, "arguments": args},
-                audit.get("policy_version", ""),
+                reviewed_action,
+                reviewed_context,
+                policy_version,
                 non_overridable=False,  # review dispositions are never refuse
+                reason=reason,
             )
         except Exception as e:
             review_id = None
@@ -242,7 +268,11 @@ def is_recursive_target(command: list[str] | str) -> bool:
     return any("patristic_ethics" in t for t in tokens)
 
 
-def create_proxy_server(downstream: Any, gate: Callable[[str, dict], ProxyDecision]) -> Any:
+def create_proxy_server(
+    downstream: Any,
+    gate: Callable[[str, dict], ProxyDecision],
+    mark_dispatched_fn: Callable[[str], bool] | None = None,
+) -> Any:
     """Host-facing lowlevel MCP Server over an entered downstream Client.
 
     tools/list and tools/call pass through unchanged; the gate runs
@@ -263,7 +293,7 @@ def create_proxy_server(downstream: Any, gate: Callable[[str, dict], ProxyDecisi
         args = params.arguments or {}
         try:
             decision = await anyio.to_thread.run_sync(
-                lambda: gate(params.name, args)
+            lambda: gate(params.name, args)
             )
         except Exception as e:  # fail closed even if the gate itself crashes
             decision = ProxyDecision(
@@ -286,19 +316,22 @@ def create_proxy_server(downstream: Any, gate: Callable[[str, dict], ProxyDecisi
                 ],
                 is_error=True,
             )
-        return await downstream.call_tool(params.name, args)
+        result = await downstream.call_tool(params.name, args)
+        if decision.dispatch_review_id and mark_dispatched_fn is not None:
+            mark_dispatched_fn(decision.dispatch_review_id)
+        return result
 
     return Server("pea-proxy", on_list_tools=on_list_tools, on_call_tool=on_call_tool)
 
 
-async def _serve(cmd: list[str], gate) -> None:
+async def _serve(cmd: list[str], gate, mark_dispatched_fn=None) -> None:
     """Spawn the downstream stdio server and serve the proxy over stdio."""
     from mcp import Client, StdioServerParameters
     from mcp.server.stdio import stdio_server
 
     params = StdioServerParameters(command=cmd[0], args=cmd[1:])
     async with Client(params) as downstream:
-        server = create_proxy_server(downstream, gate)
+        server = create_proxy_server(downstream, gate, mark_dispatched_fn)
         async with stdio_server() as (read_stream, write_stream):
             await server.run(
                 read_stream,
@@ -357,6 +390,9 @@ def main(argv: list[str] | None = None) -> None:
         set(filter(None, a.allowlist.split(",")))
         if a.allowlist is not None else None
     )
+    # stdio has no transport session id; scope approvals to this proxy
+    # process so a restart or another agent session cannot reuse them.
+    proxy_session_id = uuid.uuid4().hex
 
     def assess_fn(envelope):
         return assess_mod.assess(
@@ -369,12 +405,14 @@ def main(argv: list[str] | None = None) -> None:
             assess_fn=assess_fn,
             open_review_fn=store.open_review,
             runtime_store=store,
+            claim_approval_fn=store.claim_matching_approval,
+            session_id=proxy_session_id,
             allowlist=allowlist,
         )
 
     import anyio
 
-    anyio.run(_serve, cmd, gate)
+    anyio.run(_serve, cmd, gate, store.mark_dispatched)
 
 
 if __name__ == "__main__":

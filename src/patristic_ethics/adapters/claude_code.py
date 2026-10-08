@@ -8,16 +8,13 @@ line) to stdout. All diagnostics go to stderr.
 
 Guarantees and limits (documented, not smoothed over):
 
-- **Fail-open.** A command-hook ``timeout`` (settings ``timeout`` field),
-  runner crash, or malformed payload makes the prompt/tool PROCEED with
-  no PEA output (exit 0, empty stdout): Claude Code runs the tool when a
-  PreToolUse hook times out. Exit code 2 is the alternative block
-  mechanism (stderr becomes the reason), but it is equally unavailable
-  after a timeout, so this adapter never relies on it.
+- **Fail-closed where the process can respond.** Runner errors and invalid
+  results return block/deny decisions for UserPromptSubmit and PreToolUse.
+  A host-enforced timeout or malformed payload cannot be mapped by this
+  process. Exit code 2 is not used; protocol JSON carries the decision.
 - **Transcript not parsed.** ``transcript_path`` is written asynchronously
-  and may lag the hook, so it is never read: ``messages`` is always []
-  and ``history.complete`` is always false (same honest-context v1
-  choice as the OpenCode adapter).
+  and may lag the hook, so it is never read. Configured hook-observed history supplies prior
+  messages; ``history.complete`` remains false.
 - **MessageDisplay cannot withhold.** ``displayContent`` replaces only
   what the user sees on screen; the model transcript keeps the original
   text. It is advisory display, never an output gate.
@@ -36,6 +33,8 @@ import sys
 from typing import Callable, Optional
 
 from ..context import validate_envelope
+from .history import collect, remember
+from .result import validate_result
 
 HOST_NAME = "claude-code"
 HOST_VERSION = "2.1.286"
@@ -112,6 +111,7 @@ def build_envelope(payload: dict) -> Optional[dict]:
         envelope["candidate_response"] = _display_text(payload)
     else:
         return None
+    collect(envelope)
     try:
         validate_envelope(envelope)
     except ValueError:  # EnvelopeError subclasses ValueError
@@ -183,7 +183,7 @@ def default_runner(envelope_json: str) -> str:
 
     PEA_BACKEND/PEA_DB/PEA_POLICY are passed through as CLI flags (the
     CLI itself reads no environment). Raises on non-zero exit or timeout;
-    callers fail open.
+    `handle()` blocks supported input/pre-tool events on those failures.
     """
     cmd = [
         sys.executable,
@@ -225,22 +225,23 @@ def handle(payload: dict, runner: Callable[[str], str]) -> "tuple[Optional[dict]
         return None, "pea claude-code: unmapped or invalid hook payload (fail-open)"
     try:
         raw = runner(json.dumps(envelope, ensure_ascii=False))
-        assess_result = json.loads(raw)
-        if not isinstance(assess_result, dict):
-            raise ValueError("expected a JSON object from the pea cli")
+        assess_result = validate_result(json.loads(raw))
     except Exception as e:  # timeout, non-zero exit, malformed stdout
-        return None, f"pea claude-code: assessment failed (fail-open): {e}"
+        event = payload.get("hook_event_name")
+        failure = {"action": "withhold", "guidance": {"text": "PEA assessment unavailable; this request or tool call is blocked."}}
+        out = decide(failure, payload) if event in ("UserPromptSubmit", "PreToolUse") else None
+        return out, f"pea claude-code: assessment failed; supported event blocked: {e}"
+    remember({**envelope, "_hook_event": payload.get("hook_event_name"),
+              "_hook_event_id": payload.get("turn_id") or payload.get("prompt_id")}, assess_result.get("action", ""))
     return decide(assess_result, payload), None
 
 
 def main(argv: "Optional[list[str]]" = None, runner: "Optional[Callable[[str], str]]" = None) -> int:
     """Hook entry point: stdin hook JSON -> at most one protocol JSON line.
 
-    Always exits 0 (fail-open): a blocked outcome is expressed purely by
-    the protocol JSON on stdout, never by the exit code. Exit 2 is the
-    documented alternative block mechanism but is not used (see module
-    docstring). argv is accepted for signature compatibility; hooks pass
-    nothing.
+    Always exits 0: a blocked outcome is expressed by protocol JSON on
+    stdout, never by the exit code. argv is accepted for signature
+    compatibility; hooks pass nothing.
     """
     del argv  # unused: hooks invoke this module with no arguments
     try:
@@ -254,7 +255,6 @@ def main(argv: "Optional[list[str]]" = None, runner: "Optional[Callable[[str], s
     out, diag = handle(payload, runner or default_runner)
     if diag:
         _diag(diag)
-        return 0
     if out is not None:
         print(json.dumps(out, ensure_ascii=False))
     return 0

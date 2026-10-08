@@ -8,6 +8,9 @@ is_error results.
 
 from __future__ import annotations
 
+from pathlib import Path
+import tomllib
+
 import anyio
 import mcp
 import ollama
@@ -23,6 +26,18 @@ def test_imports_pinned() -> None:
     assert hasattr(ollama, "Client") and hasattr(ollama, "AsyncClient")
     # MCP 2.x exposes the in-process Client at top level.
     assert hasattr(mcp, "Client")
+
+
+def test_package_installs_user_facing_cli_commands() -> None:
+    project = tomllib.loads(
+        (Path(__file__).parents[1] / "pyproject.toml").read_text(encoding="utf-8")
+    )
+    assert project["project"]["scripts"] == {
+        "pea": "patristic_ethics.cli:main",
+        "pea-controlled": "patristic_ethics.controlled:main",
+        "pea-controlled-claude": "patristic_ethics.claude_controlled:main",
+        "pea-operator": "patristic_ethics.operator:main",
+    }
 
 
 class Echo(BaseModel):
@@ -42,7 +57,7 @@ async def _probe_server() -> None:
         """Always raises; the client must see an error result."""
         raise RuntimeError("PEA_TEST_ERROR")
 
-    async with Client(server, raise_exceptions=False, read_timeout_seconds=30.0) as client:
+    async with Client(server, raise_exceptions=False, read_timeout_seconds=2.0) as client:
         ok = await client.call_tool("echo", {"text": "PEA"})
         assert ok.structured_content == {"text": "PEA"}
 

@@ -28,7 +28,7 @@ that also works.
 | `PEA_POLICY` | unset → CLI default (`policy/rules.json`) | Policy JSON path. |
 | `PEA_BACKEND` | `fake` | Interpreter backend: `fake` (offline) or `ollama`. |
 | `PEA_WORKDIR` | `process.cwd()` | Working directory for the PEA CLI subprocess. |
-| `PEA_TIMEOUT_MS` | `20000` | CLI timeout (ms); kill + fail-open on expiry. |
+| `PEA_TIMEOUT_MS` | `20000` | CLI timeout (ms); input guidance skips on failure; covered pre-tool hook blocks while it can respond. |
 | `PEA_LOG` | unset | Best-effort audit log path (JSON lines). |
 
 ## Behavior
@@ -40,8 +40,7 @@ that also works.
   refuse/clarify/review throws, which blocks the call (the model sees the
   tool error). `bash` is enabled here only so the pre-action gate is
   demonstrable.
-- CLI failures and timeouts fail OPEN: nothing injected, nothing blocked,
-  a `pea_cli_failure` diagnostic is logged.
+- CLI failures and invalid results skip native input injection but block covered pre-tool calls while the hook can respond; a `pea_cli_failure` diagnostic is logged.
 
 ## Native limits — read this
 
@@ -54,9 +53,7 @@ that also works.
    exceptions — the tools-disabled profile in
    `examples/opencode/controlled/opencode.json` — is the safest profile;
    this example enables `bash` only to exercise the pre-action gate.
-3. **Fail-open.** If the PEA CLI cannot run (missing venv, timeout,
-   malformed output), hooks degrade to no-op. Use the controlled client
-   (M4b) when fail-open is unacceptable.
+3. **Input guidance is advisory.** CLI failures skip native prompt injection; covered pre-tool events block on assessment errors. Host-killed hooks and output display remain outside this process boundary. Use the controlled client for PEA-owned output release.
 4. **Do not combine with the controlled client profile** (M4b). The plugin
    and the controlled client would assess the same prompt twice with no
    shared private call path. Keep them in separate directories/profiles.

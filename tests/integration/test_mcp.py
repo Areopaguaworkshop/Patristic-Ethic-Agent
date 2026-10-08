@@ -138,7 +138,7 @@ def test_tools_listed_and_no_approval_params(tmp_path):
     server = _server(tmp_path, db)
 
     async def probe():
-        async with Client(server, raise_exceptions=True, read_timeout_seconds=30.0) as c:
+        async with Client(server, raise_exceptions=True, read_timeout_seconds=2.0) as c:
             listed = (await c.list_tools()).tools
             names = {t.name for t in listed}
             assert names == _TOOL_NAMES, f"tool names: {names}"
@@ -159,13 +159,14 @@ def test_check_action_benign_and_refuse(tmp_path):
     refuse = (FIXTURES / "refuse.json").read_text()
 
     async def probe():
-        async with Client(server, raise_exceptions=True, read_timeout_seconds=30.0) as c:
+        async with Client(server, raise_exceptions=True, read_timeout_seconds=2.0) as c:
             ok = await c.call_tool("check_action", {"envelope_json": benign})
             assert not ok.is_error
             sc = ok.structured_content
             assert sc["action"] == "proceed", sc
             assert sc["disposition"] == "allow", sc
             assert sc["error"] is None
+            assert sc["policy_review_status"] == "draft-unreviewed", sc
 
             bad = await c.call_tool("check_action", {"envelope_json": refuse})
             assert not bad.is_error
@@ -186,7 +187,7 @@ def test_check_action_review_opens_pending_review(tmp_path):
     ).model_dump_json()
 
     async def probe():
-        async with Client(server, raise_exceptions=True, read_timeout_seconds=30.0) as c:
+        async with Client(server, raise_exceptions=True, read_timeout_seconds=2.0) as c:
             r = await c.call_tool("check_action", {"envelope_json": envelope_json})
             sc = r.structured_content
             assert sc["action"] == "review", sc
@@ -210,17 +211,19 @@ def test_search_corpus_get_passage_cite_father(tmp_path):
     unit_id, token = _known_unit(db)
 
     async def probe():
-        async with Client(server, raise_exceptions=True, read_timeout_seconds=30.0) as c:
+        async with Client(server, raise_exceptions=True, read_timeout_seconds=2.0) as c:
             s = await c.call_tool("search_corpus", {"query": token, "limit": 5})
             assert not s.is_error
             units = s.structured_content["units"]
             assert units, f"known token {token!r} must hit"
             assert any(u["id"] == unit_id for u in units), [u["id"] for u in units]
+            assert all(u["review_status"] == "draft-unreviewed" for u in units)
 
             p = await c.call_tool("get_passage", {"unit_id": unit_id})
             assert not p.is_error
             pu = p.structured_content
             assert pu["found"] is True and pu["unit"]["id"] == unit_id, pu
+            assert pu["unit"]["review_status"] == "draft-unreviewed", pu
 
             miss = await c.call_tool("get_passage", {"unit_id": "u-no-such-unit"})
             mu = miss.structured_content

@@ -38,11 +38,14 @@ def test_adapter_wires_host_hooks() -> None:
     assert 'from "@opencode-ai/plugin"' in src
 
 
-def test_adapter_recursion_guard_markers() -> None:
+def test_adapter_does_not_exempt_agent_supplied_tool_arguments() -> None:
     src = ADAPTER.read_text(encoding="utf-8")
-    assert 'tool.startsWith("pea")' in src
-    assert "patristic_ethics.cli" in src
-    assert "pea assess" in src
+    assert "recursion_guard" not in src
+    assert "argsJson.includes" not in src
+    assert "buildPreActionEnvelope(sessionID, input?.callID ?? \"\", tool, output?.args, client)" in src
+    assert '"assessment unavailable; tool call withheld"' in src
+    assert '"assessment failed; tool call withheld"' in src
+    assert 'new Set(["refuse", "clarify", "review", "withhold"])' in src
 
 
 def test_adapter_never_writes_stdout() -> None:

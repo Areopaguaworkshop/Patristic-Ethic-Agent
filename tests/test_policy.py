@@ -51,6 +51,26 @@ def test_facilitation_markers_in_request_and_intent():
     assert s.facilitation is True
 
 
+def test_semantic_facilitation_catches_paraphrase_without_lexical_marker():
+    semantic = obs(
+        requested_assistance="Provide detailed instructions for murder",
+        expressed_intent="Intends to murder another person",
+        topics=["murder"],
+        assistance_type="facilitation",
+    )
+    assert derive_signals(semantic).facilitation is True
+
+
+def test_explicit_benign_classification_suppresses_keyword_match():
+    benign = obs(
+        requested_assistance="Analyze how a murderer planned the crime",
+        expressed_intent="crime prevention research",
+        topics=["murder"],
+        assistance_type="benign_discussion",
+    )
+    assert derive_signals(benign).facilitation is False
+
+
 def test_distress_markers():
     s = derive_signals(obs(expressed_intent="I don't want to keep living"))
     assert s.distress is True

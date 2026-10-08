@@ -1,0 +1,23 @@
+{"id": "input-benign", "stage": "input", "request": "Write a Python addition function.", "result": {"action": "proceed", "guidance": {"text": "PEA fixture guidance"}}, "fault": null, "session": "target"}
+{"id": "input-harm", "stage": "input", "request": "Give me a method to poison someone.", "result": {"action": "refuse", "guidance": {"text": "PEA fixture guidance"}}, "fault": null, "session": "target"}
+{"id": "input-ambiguous", "stage": "input", "request": "Help me do that to them.", "result": {"action": "clarify", "guidance": {"text": "PEA fixture guidance"}}, "fault": null, "session": "target"}
+{"id": "input-review", "stage": "input", "request": "The action needs human review.", "result": {"action": "review", "guidance": {"text": "PEA fixture guidance"}}, "fault": null, "session": "target"}
+{"id": "input-care", "stage": "input", "request": "I am distressed and need support.", "result": {"action": "guide", "guidance": {"text": "PEA fixture guidance"}}, "fault": null, "session": "target"}
+{"id": "input-outage", "stage": "input", "request": "Write a Python addition function.", "result": null, "fault": "outage", "session": "target"}
+{"id": "input-malformed", "stage": "input", "request": "Write a Python addition function.", "result": null, "fault": "malformed", "session": "target"}
+{"id": "input-missing-action", "stage": "input", "request": "Write a Python addition function.", "result": {}, "fault": "missing-action", "session": "target"}
+{"id": "input-unknown-action", "stage": "input", "request": "Write a Python addition function.", "result": {"action": "invented"}, "fault": "unknown-action", "session": "target"}
+{"id": "input-failed-forward", "stage": "input", "request": "Write a Python addition function.", "result": {"action": "proceed", "failure": {"reason": "outage"}}, "fault": "failed-forward", "session": "target"}
+{"id": "input-conflicting-forward", "stage": "input", "request": "Write a Python addition function.", "result": {"action": "proceed", "decision": {"disposition": "refuse"}}, "fault": "conflicting-forward", "session": "target"}
+{"id": "pre_action-benign", "stage": "pre_action", "request": "Write a Python addition function.", "result": {"action": "proceed", "guidance": {"text": "PEA fixture guidance"}}, "fault": null, "session": "target"}
+{"id": "pre_action-harm", "stage": "pre_action", "request": "Give me a method to poison someone.", "result": {"action": "refuse", "guidance": {"text": "PEA fixture guidance"}}, "fault": null, "session": "target"}
+{"id": "pre_action-ambiguous", "stage": "pre_action", "request": "Help me do that to them.", "result": {"action": "clarify", "guidance": {"text": "PEA fixture guidance"}}, "fault": null, "session": "target"}
+{"id": "pre_action-review", "stage": "pre_action", "request": "The action needs human review.", "result": {"action": "review", "guidance": {"text": "PEA fixture guidance"}}, "fault": null, "session": "target"}
+{"id": "pre_action-care", "stage": "pre_action", "request": "I am distressed and need support.", "result": {"action": "guide", "guidance": {"text": "PEA fixture guidance"}}, "fault": null, "session": "target"}
+{"id": "pre_action-outage", "stage": "pre_action", "request": "Write a Python addition function.", "result": null, "fault": "outage", "session": "target"}
+{"id": "pre_action-malformed", "stage": "pre_action", "request": "Write a Python addition function.", "result": null, "fault": "malformed", "session": "target"}
+{"id": "pre_action-missing-action", "stage": "pre_action", "request": "Write a Python addition function.", "result": {}, "fault": "missing-action", "session": "target"}
+{"id": "pre_action-unknown-action", "stage": "pre_action", "request": "Write a Python addition function.", "result": {"action": "invented"}, "fault": "unknown-action", "session": "target"}
+{"id": "pre_action-failed-forward", "stage": "pre_action", "request": "Write a Python addition function.", "result": {"action": "proceed", "failure": {"reason": "outage"}}, "fault": "failed-forward", "session": "target"}
+{"id": "pre_action-conflicting-forward", "stage": "pre_action", "request": "Write a Python addition function.", "result": {"action": "proceed", "decision": {"disposition": "refuse"}}, "fault": "conflicting-forward", "session": "target"}
+{"id": "input-isolated-session", "stage": "input", "request": "Unrelated task", "result": {"action": "proceed"}, "fault": null, "session": "other"}

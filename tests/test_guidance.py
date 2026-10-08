@@ -40,6 +40,7 @@ class FakeUnit:
     language: str = "en"
     source_url: str = "https://example.com/mt5"
     rights_status: str = "public-domain"
+    review_status: str = "draft-unreviewed"
     text: "str | None" = PEACEMAKERS
 
     def __post_init__(self):
@@ -126,6 +127,8 @@ def test_null_text_passage_skipped_nonnull_included():
     assert len(r.citations) == 1
     assert r.citations[0].quote == PEACEMAKERS
     assert r.citations[0].unit_id == "mt5.9"
+    assert r.citations[0].review_status == "draft-unreviewed"
+    assert "draft material" in r.text
 
 
 def test_filter_verified_drops_failing_quote():
@@ -161,14 +164,14 @@ def test_decision_source_missing_overrides_verified_passages():
 def test_assess_fabricated_quote_flagged():
     d = FakeDecision(disposition="allow")
     p = FakeUnit()
-    check = assess_output('As taught: "made up quote entirely"', d, [p])
+    check = assess_output('As taught by Augustine: "made up quote entirely"', d, [p])
     assert not check.ok and "unsupported_quote" in check.problems
 
 
 def test_assess_exact_quote_ok():
     d = FakeDecision(disposition="allow")
     p = FakeUnit()
-    check = assess_output(f'As taught: "{PEACEMAKERS}"', d, [p])
+    check = assess_output(f'As taught by Augustine: "{PEACEMAKERS}"', d, [p])
     assert check.ok
 
 
@@ -186,8 +189,14 @@ def test_assess_same_marker_on_allow_not_flagged():
 
 def test_assess_missing_citation_when_quote_no_passages():
     d = FakeDecision(disposition="allow")
-    check = assess_output('He wrote "some words here" long ago.', d, [])
+    check = assess_output('Augustine wrote "some words here" long ago.', d, [])
     assert "missing_citation" in check.problems
+
+
+def test_assess_does_not_treat_plain_quoted_text_as_patristic_citation():
+    d = FakeDecision(disposition="allow")
+    check = assess_output('The program prints "hello world".', d, [])
+    assert check.ok
 
 
 # --- revise_once ---

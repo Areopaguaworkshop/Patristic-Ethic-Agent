@@ -269,9 +269,11 @@ def test_handle_garbage_payload_none_without_runner_call() -> None:
     assert cx.handle({"garbage": True}, runner=boom) is None
 
 
-def test_handle_bad_runner_result_fails_open_none() -> None:
-    assert cx.handle(prompt_payload(), runner=lambda env: "not a dict") is None
-    assert cx.handle(prompt_payload(), runner=lambda env: {"action": 42}) is None
+def test_handle_bad_runner_result_blocks_supported_input() -> None:
+    out = cx.handle(prompt_payload(), runner=lambda env: "not a dict")
+    assert out is not None and out["decision"] == "block"
+    out = cx.handle(prompt_payload(), runner=lambda env: {"action": 42})
+    assert out is not None and out["decision"] == "block"
 
 
 # ---------- main: fake stdin + protocol purity ----------
@@ -313,18 +315,18 @@ def test_main_malformed_stdin_exit0_empty_stdout(monkeypatch) -> None:
     assert err != ""
 
 
-def test_main_runner_raises_exit0_empty_stdout(monkeypatch) -> None:
+def test_main_runner_raises_blocks_input(monkeypatch) -> None:
     code, out, err = run_main(monkeypatch, json.dumps(prompt_payload()), raise_runner)
     assert code == 0
-    assert out == ""
-    assert err != ""
+    assert json.loads(out)["decision"] == "block"
+    assert "blocking supported hook" in err
 
 
-def test_main_runner_timeout_exit0_empty_stdout(monkeypatch) -> None:
+def test_main_runner_timeout_blocks_input(monkeypatch) -> None:
     def timeout_runner(env):
         raise TimeoutError("15s cap")
     code, out, err = run_main(monkeypatch, json.dumps(prompt_payload()), timeout_runner)
-    assert code == 0 and out == "" and err != ""
+    assert code == 0 and json.loads(out)["decision"] == "block" and err != ""
 
 
 def test_main_proceed_no_output(monkeypatch) -> None:
@@ -350,11 +352,11 @@ def test_hooks_json_parses_and_wires_both_events() -> None:
         entry = hooks[event][0]["hooks"][0]
         assert entry["type"] == "command"
         assert "patristic_ethics.adapters.codex" in entry["command"]
-        assert entry["timeout"] == 15
+        assert entry["timeout"] > cx.CLI_TIMEOUT_S  # adapter must return before host termination
 
 
 def test_adapter_docstring_documents_limits() -> None:
     doc = cx.__doc__ or ""
-    assert "fail" in doc.lower() and "open" in doc.lower()
+    assert "fail-closed" in doc.lower()
     assert "transcript" in doc.lower()
     assert "sandbox" in doc.lower() or "controlled" in doc.lower()

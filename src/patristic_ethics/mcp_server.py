@@ -38,7 +38,7 @@ _MISSING_CLAUSE = "insufficient evidence in this collection"
 
 
 class CitationOut(BaseModel):
-    """One verified-provenance citation."""
+    """Citation provenance and editorial status (separate from quote verification)."""
 
     unit_id: str
     author: str
@@ -47,6 +47,7 @@ class CitationOut(BaseModel):
     quote: str
     language: str
     rights_status: str
+    review_status: str = "unknown"
 
 
 class CheckActionResult(BaseModel):
@@ -62,6 +63,7 @@ class CheckActionResult(BaseModel):
     principle_ids: list[str] = Field(default_factory=list)
     reason: str = ""
     source_status: Literal["verified", "partial", "missing"] = "verified"
+    policy_review_status: str = "unknown"
     urgent_care: bool = False
     non_overridable: bool = False
     guidance_text: str = ""
@@ -83,6 +85,7 @@ class UnitOut(BaseModel):
     text: str | None = None
     rights_status: str
     source_url: str
+    review_status: str = "unknown"
 
 
 class SearchResult(BaseModel):
@@ -128,6 +131,7 @@ def _citation_out(unit: Any) -> CitationOut:
         quote=unit.text or "",
         language=unit.language,
         rights_status=unit.rights_status,
+        review_status=getattr(unit, "review_status", "unknown"),
     )
 
 
@@ -141,6 +145,7 @@ def _unit_out(unit: Any) -> UnitOut:
         text=unit.text,
         rights_status=unit.rights_status,
         source_url=unit.source_url,
+        review_status=getattr(unit, "review_status", "unknown"),
     )
 
 
@@ -245,6 +250,7 @@ def create_server(
                     quote=c.quote,
                     language=c.language,
                     rights_status=c.rights_status,
+                    review_status=c.review_status,
                 )
                 for c in guidance_result.citations
             ]
@@ -257,6 +263,7 @@ def create_server(
             principle_ids=list(decision.principle_ids) if decision is not None else [],
             reason=decision.reason if decision is not None else (result.failure.reason if result.failure else ""),
             source_status=source_status,
+            policy_review_status=policy_doc.get("review_status", "unknown"),
             urgent_care=bool(decision.urgent_care) if decision is not None else False,
             non_overridable=bool(decision.non_overridable) if decision is not None else False,
             guidance_text=guidance_text,

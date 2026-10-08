@@ -29,6 +29,8 @@ import sys
 from pathlib import Path
 
 import pytest
+import anyio
+from mcp import Client
 
 from patristic_ethics.context import build_envelope
 from patristic_ethics.runtime_store import (
@@ -59,6 +61,10 @@ def clean_env(monkeypatch):
 
 def pending(store, ttl_s: float = 3600.0) -> str:
     return store.open_review("s1", ACTION, CONTEXT, PV, ttl_s=ttl_s)
+
+
+def claim(store, review_id):
+    return store.claim_dispatch(review_id, ACTION, CONTEXT, PV)
 
 
 # --- 1. resolver invocation attempts --------------------------------------
@@ -173,13 +179,9 @@ def test_check_action_returns_no_resolution_mechanism(tmp_path):
     ).model_dump_json()
 
     async def probe():
-        out = await server.call_tool("check_action", {"envelope_json": envelope_json})
-        payload = out
-        # MCPServer.call_tool returns the tool result; find the structured dict
-        text = getattr(out, "text", None) or ""
-        sc = getattr(out, "structured_content", None)
-        if sc is None and text:
-            sc = json.loads(text)
+        async with Client(server, raise_exceptions=True, read_timeout_seconds=2.0) as client:
+            out = await client.call_tool("check_action", {"envelope_json": envelope_json})
+        sc = out.structured_content
         assert sc is not None, f"unusable result: {out!r}"
         assert sc["action"] == "review", sc
         assert sc["review_id"], "review disposition must expose review_id"
@@ -194,7 +196,7 @@ def test_check_action_returns_no_resolution_mechanism(tmp_path):
             assert "resolve" not in low or low.startswith("_"), attr
             assert "approve" not in low, attr
 
-    asyncio.run(probe())
+    anyio.run(probe)
 
 
 # --- 3. operator impersonation by direct db write ---------------------------
@@ -228,8 +230,8 @@ def test_direct_db_write_is_not_prevented_same_user(store, tmp_path):
     assert row["resolved_by"] == "forged"
 
     # code-level mitigation 1: dispatch is still one-shot and gated
-    assert store.claim_dispatch(rid) is True
-    assert store.claim_dispatch(rid) is False
+    assert claim(store, rid) is True
+    assert claim(store, rid) is False
     # code-level mitigation 2: reassessment still detects caller drift
     assert store.reassess_required(rid, ACTION, CONTEXT, PV) is False
     assert store.reassess_required(rid, {"tool": "other"}, CONTEXT, PV) is True
@@ -259,10 +261,10 @@ def test_stuck_attempt_never_auto_dispatches(store, monkeypatch):
     monkeypatch.setenv(ENV_TOKEN, "real-secret")
     rid = pending(store)
     store.resolve_review(rid, "approved", "real-secret", note="operator ok")
-    assert store.claim_dispatch(rid) is True
+    assert claim(store, rid) is True
     # crash after claim: repeated claims all fail — no auto-retry anywhere
     for _ in range(3):
-        assert store.claim_dispatch(rid) is False
+        assert claim(store, rid) is False
     # no other agent-facing call silently completes the dispatch either
     assert store.mark_dispatched(rid) is True  # operator explicitly confirms
     stuck = store.stuck_attempts(older_than_s=0.0)
@@ -270,11 +272,11 @@ def test_stuck_attempt_never_auto_dispatches(store, monkeypatch):
     # and a genuinely stuck row is only VISIBLE, never retried:
     rid2 = pending(store)
     store.resolve_review(rid2, "approved", "real-secret", note="operator ok")
-    assert store.claim_dispatch(rid2) is True
-    assert store.claim_dispatch(rid2) is False
+    assert claim(store, rid2) is True
+    assert claim(store, rid2) is False
     visible = store.stuck_attempts(older_than_s=0.0)
     assert [r["review_id"] for r in visible] == [rid2]
-    assert store.claim_dispatch(rid2) is False  # visibility != re-arm
+    assert claim(store, rid2) is False  # visibility != re-arm
 
 
 # --- 6. subprocess: tokenless resolver attempt -------------------------------

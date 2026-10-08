@@ -35,6 +35,10 @@ desktop.ini
 codex-session-*.md
 opencode-session-*.md
 
+# Corpus index is a build artifact: `uv run pea corpus build corpus/seed.jsonl`
+# (tests/conftest.py rebuilds it on demand)
+corpus/units.db
+
 # BEGIN oh-my-opencode-slim clonedeps
 .slim/clonedeps/repos/
 # END oh-my-opencode-slim clonedeps

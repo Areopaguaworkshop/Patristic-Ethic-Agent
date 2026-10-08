@@ -34,7 +34,8 @@ disabled.
 
 DISPATCH SEMANTICS: at-most-once, never a promise of exactly-once
 effects. claim_dispatch atomically flips approved/none -> attempted
-(one UPDATE, rowcount==1 wins). If the process dies after claiming,
+only when the current action, context, policy version, and expiry match
+the review (one UPDATE, rowcount==1 wins). If the process dies after claiming,
 NO function auto-retries the attempt — stuck_attempts() is operator
 inspection only, and re-dispatching requires operator judgment plus a
 NEW review (open_review + reassessment). Expired reviews resolve to
@@ -48,6 +49,7 @@ import hmac
 import json
 import os
 import sqlite3
+import threading
 import time
 import uuid
 from typing import Any
@@ -104,7 +106,10 @@ CREATE TABLE IF NOT EXISTS reviews (
     resolution_note TEXT,
     dispatch_state  TEXT NOT NULL DEFAULT 'none'
                     CHECK(dispatch_state IN ('none','attempted','dispatched')),
-    claimed_at      REAL
+    claimed_at      REAL,
+    action_json     TEXT NOT NULL DEFAULT '{}',
+    context_json    TEXT NOT NULL DEFAULT '{}',
+    reason          TEXT NOT NULL DEFAULT ''
 );
 """
 
@@ -114,11 +119,30 @@ class RuntimeStore:
 
     def __init__(self, db_path: Any):
         self.db_path = str(db_path)
-        # ponytail: single held connection, autocommit — each statement
-        # commits atomically; no distributed machinery warranted here.
-        self.conn = sqlite3.connect(self.db_path, isolation_level=None)
-        self.conn.row_factory = sqlite3.Row
+        self._local = threading.local()
         self.conn.executescript(_SCHEMA)
+        self._migrate_reviews()
+
+    def _migrate_reviews(self) -> None:
+        columns = {row[1] for row in self.conn.execute("PRAGMA table_info(reviews)")}
+        # SQLite forbids bind parameters in ALTER TABLE, so each statement is a literal.
+        if "action_json" not in columns:
+            self.conn.execute("ALTER TABLE reviews ADD COLUMN action_json TEXT NOT NULL DEFAULT '{}'")
+        if "context_json" not in columns:
+            self.conn.execute("ALTER TABLE reviews ADD COLUMN context_json TEXT NOT NULL DEFAULT '{}'")
+        if "reason" not in columns:
+            self.conn.execute("ALTER TABLE reviews ADD COLUMN reason TEXT NOT NULL DEFAULT ''")
+
+    @property
+    def conn(self) -> sqlite3.Connection:
+        """Give each worker its own SQLite handle; connections stay thread-local."""
+        conn = getattr(self._local, "conn", None)
+        if conn is None:
+            conn = sqlite3.connect(self.db_path, isolation_level=None)
+            conn.row_factory = sqlite3.Row
+            conn.executescript(_SCHEMA)
+            self._local.conn = conn
+        return conn
 
     # --- events (agent-facing; audit only) -----------------------------
 
@@ -171,6 +195,7 @@ class RuntimeStore:
         policy_version: str,
         ttl_s: float = 3600.0,
         non_overridable: bool = False,
+        reason: str = "",
     ) -> str:
         """Open a pending review bound to digests + policy version + expiry.
 
@@ -181,23 +206,37 @@ class RuntimeStore:
             raise ReviewNotAllowed(
                 "non-overridable decisions cannot open a review"
             )
-        review_id = uuid.uuid4().hex
+        if ttl_s <= 0:
+            raise ValueError("review ttl_s must be positive")
         now = time.time()
+        action_digest, context_digest = digest(action), digest(context)
+        existing = self.conn.execute(
+            "SELECT review_id FROM reviews WHERE session_id = ? AND action_digest = ?"
+            " AND context_digest = ? AND policy_version = ? AND status = 'pending'"
+            " AND expires_at > ? ORDER BY created_at LIMIT 1",
+            (session_id, action_digest, context_digest, policy_version, now),
+        ).fetchone()
+        if existing is not None:
+            return existing["review_id"]
+        review_id = uuid.uuid4().hex
         with self.conn:
             self.conn.execute(
                 "INSERT INTO reviews (review_id, session_id, action_digest,"
                 " context_digest, policy_version, status, created_at,"
-                " expires_at, dispatch_state)"
-                " VALUES (?,?,?,?,?,?,?,?, 'none')",
+                " expires_at, dispatch_state, action_json, context_json, reason)"
+                " VALUES (?,?,?,?,?,?,?,?, 'none',?,?,?)",
                 (
                     review_id,
                     session_id,
-                    digest(action),
-                    digest(context),
+                    action_digest,
+                    context_digest,
                     policy_version,
                     "pending",
                     now,
                     now + ttl_s,
+                    json.dumps(action, sort_keys=True, separators=(",", ":")),
+                    json.dumps(context, sort_keys=True, separators=(",", ":")),
+                    reason,
                 ),
             )
         return review_id
@@ -207,7 +246,7 @@ class RuntimeStore:
         row = self.conn.execute(
             "SELECT * FROM reviews WHERE review_id = ?", (review_id,)
         ).fetchone()
-        return dict(row) if row is not None else None
+        return self._review_row(row) if row is not None else None
 
     def get_review_status(self, review_id: str) -> dict | None:
         """Agent-facing limited view: status, review_id, expires_at only.
@@ -225,6 +264,52 @@ class RuntimeStore:
             "status": row["status"],
             "expires_at": row["expires_at"],
         }
+
+    def list_reviews(self, status: str | None = None) -> list[dict]:
+        """Operator view of reviews, including the exact material under review."""
+        if status is None:
+            rows = self.conn.execute(
+                "SELECT * FROM reviews ORDER BY created_at DESC"
+            ).fetchall()
+        else:
+            rows = self.conn.execute(
+                "SELECT * FROM reviews WHERE status = ? ORDER BY created_at DESC",
+                (status,),
+            ).fetchall()
+        return [self._review_row(row) for row in rows]
+
+    @staticmethod
+    def _review_row(row: sqlite3.Row) -> dict:
+        result = dict(row)
+        for column, key in (("action_json", "action"), ("context_json", "context")):
+            try:
+                result[key] = json.loads(result.pop(column))
+            except (TypeError, json.JSONDecodeError):
+                result[key] = None
+        return result
+
+    def claim_matching_approval(
+        self, session_id: str, action: Any, context: Any, policy_version: str
+    ) -> str | None:
+        """Atomically claim one exact, unexpired approval for a rechecked retry."""
+        now = time.time()
+        row = self.conn.execute(
+            "SELECT review_id FROM reviews WHERE session_id = ? AND status = 'approved'"
+            " AND dispatch_state = 'none' AND expires_at > ? AND action_digest = ?"
+            " AND context_digest = ? AND policy_version = ? ORDER BY created_at LIMIT 1",
+            (session_id, now, digest(action), digest(context), policy_version),
+        ).fetchone()
+        if row is None:
+            return None
+        review_id = row["review_id"]
+        with self.conn:
+            cur = self.conn.execute(
+                "UPDATE reviews SET dispatch_state = 'attempted', claimed_at = ?"
+                " WHERE review_id = ? AND status = 'approved' AND dispatch_state = 'none'"
+                " AND expires_at > ?",
+                (now, review_id, now),
+            )
+        return review_id if cur.rowcount == 1 else None
 
     def expire_stale(self, now: float | None = None) -> int:
         """Flip pending rows past expires_at to 'expired'; return count."""
@@ -297,9 +382,18 @@ class RuntimeStore:
         if decision not in ("approved", "denied"):
             raise ValueError(f"invalid decision: {decision!r}")
 
-        row = self.conn.execute(
-            "SELECT status FROM reviews WHERE review_id = ?", (review_id,)
-        ).fetchone()
+        # Expire stale authorization before resolving; a caller's timer
+        # cannot extend it.
+        with self.conn:
+            self.conn.execute(
+                "UPDATE reviews SET status = 'expired'"
+                " WHERE review_id = ? AND status IN ('pending','approved')"
+                " AND expires_at <= ?",
+                (review_id, now),
+            )
+            row = self.conn.execute(
+                "SELECT status FROM reviews WHERE review_id = ?", (review_id,)
+            ).fetchone()
         if row is None:
             raise ValueError(f"review not found: {review_id}")
         status = row["status"]
@@ -317,28 +411,61 @@ class RuntimeStore:
                 )
 
         with self.conn:
-            self.conn.execute(
+            cur = self.conn.execute(
                 "UPDATE reviews SET status = ?, resolved_at = ?,"
                 " resolved_by = 'operator', resolution_note = ?"
-                " WHERE review_id = ? AND status = ?",
-                (decision, now, note, review_id, status),
+                " WHERE review_id = ? AND status = ?"
+                " AND (status != 'pending' OR expires_at > ?)",
+                (decision, now, note, review_id, status, now),
             )
+        if cur.rowcount != 1:
+            raise ValueError("review expired or changed while resolving")
         return self.get_review(review_id)  # type: ignore[return-value]
 
     # --- dispatch (release path; at-most-once) ----------------------------
 
-    def claim_dispatch(self, review_id: str) -> bool:
-        """Atomically claim the single dispatch slot (approved/none -> attempted).
+    def claim_dispatch(
+        self,
+        review_id: str,
+        current_action: Any,
+        current_context: Any,
+        current_policy_version: str,
+    ) -> bool:
+        """Atomically claim dispatch only for the reviewed action and context.
 
         True exactly once per review. No auto-retry after a crash — a
         stuck 'attempted' row is operator-visible via stuck_attempts only.
+        A changed action, context, or policy version cannot use old approval;
+        the caller must reassess and open a new review.
         """
+        now = time.time()
+        action_digest = digest(current_action)
+        context_digest = digest(current_context)
         with self.conn:
+            self.conn.execute(
+                "UPDATE reviews SET status = 'expired'"
+                " WHERE review_id = ? AND status = 'approved' AND expires_at <= ?",
+                (review_id, now),
+            )
+            self.conn.execute(
+                "UPDATE reviews SET status = 'expired'"
+                " WHERE review_id = ? AND status = 'pending' AND expires_at <= ?",
+                (review_id, now),
+            )
             cur = self.conn.execute(
                 "UPDATE reviews SET dispatch_state = 'attempted',"
                 " claimed_at = ? WHERE review_id = ?"
-                " AND status = 'approved' AND dispatch_state = 'none'",
-                (time.time(), review_id),
+                " AND status = 'approved' AND dispatch_state = 'none'"
+                " AND expires_at > ? AND action_digest = ?"
+                " AND context_digest = ? AND policy_version = ?",
+                (
+                    now,
+                    review_id,
+                    now,
+                    action_digest,
+                    context_digest,
+                    current_policy_version,
+                ),
             )
         return cur.rowcount == 1
 

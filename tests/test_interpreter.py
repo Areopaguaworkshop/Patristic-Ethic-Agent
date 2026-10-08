@@ -93,6 +93,22 @@ def make_offline_ollama(monkeypatch):
     return interp, client
 
 
+def test_ollama_explicit_context_and_thinking_options():
+    interp = OllamaInterpreter(model="test-model", num_ctx=4096, think=False)
+    client = MagicMock()
+    client.chat.return_value.message.content = OBS.model_dump_json()
+    interp._client = client
+    interp.interpret(build_envelope(request="write a poem"))
+    assert client.chat.call_args.kwargs["think"] is False
+    assert client.chat.call_args.kwargs["options"] == {"temperature": 0, "num_predict": 512, "num_ctx": 4096}
+
+
+@pytest.mark.parametrize("options", [{"num_ctx": 0}, {"num_ctx": True}, {"think": "off"}])
+def test_ollama_rejects_invalid_runtime_options(options):
+    with pytest.raises(ValueError):
+        OllamaInterpreter(**options)
+
+
 def test_ollama_connection_error(monkeypatch):
     interp, client = make_offline_ollama(monkeypatch)
     client.chat.side_effect = ConnectionError("refused")
@@ -154,6 +170,17 @@ def test_ollama_success_parses_observation(monkeypatch):
     assert client.chat.call_count == 1
 
 
+def test_ollama_success_records_token_usage(monkeypatch):
+    interp, client = make_offline_ollama(monkeypatch)
+    resp = MagicMock()
+    resp.message.content = json.dumps(obs_dict())
+    resp.prompt_eval_count = 12
+    resp.eval_count = 7
+    client.chat.return_value = resp
+    interp.interpret(build_envelope(request="write a poem"))
+    assert interp.last_usage == {"prompt_tokens": 12, "completion_tokens": 7}
+
+
 def test_ollama_no_retry_on_failure(monkeypatch):
     interp, client = make_offline_ollama(monkeypatch)
     client.chat.side_effect = ConnectionError("refused")
@@ -174,7 +201,9 @@ def test_ollama_sends_schema_and_zero_temperature(monkeypatch):
         "source_id": {"title": "Source Id", "type": "string"},
         "quote": {"title": "Quote", "type": "string"},
     }
+    assert "assistance_type" in schema["required"]
     assert all(schema["properties"][k]["maxItems"] == 10 for k in ("evidence", "topics"))
+    assert schema["properties"]["evidence"]["minItems"] == 1
     assert kwargs["options"] == {"temperature": 0, "num_predict": 512}
     assert kwargs["model"] == "test-model"
     assert "tools" not in kwargs or not kwargs["tools"]
@@ -189,6 +218,7 @@ def test_observation_schema_roundtrip():
     parsed = Observation.model_validate(obs_dict())
     assert parsed.confidence == 0.9
     assert parsed.evidence[0].source_id == "m1"
+    assert parsed.assistance_type == "uncertain"
 
 
 def test_observation_confidence_bounds():

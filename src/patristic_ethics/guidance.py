@@ -15,6 +15,7 @@ source_status attributes works (no runtime policy import).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import re
 from typing import TYPE_CHECKING, Any, Callable
 
 if TYPE_CHECKING:  # duck-typed at runtime; no file-order dependency
@@ -35,6 +36,13 @@ DEFAULT_PROHIBITED_MARKERS: tuple[str, ...] = (
 )
 
 _MISSING_CLAUSE = "insufficient evidence in this collection"
+_KNOWN_SOURCE = re.compile(
+    r"\b(?:scripture|the bible|the fathers|st\.?\s*)?(?:"
+    r"Augustine|Basil(?: the Great)?|Gregory (?:of Nyssa|Nazianzen|the Great)|"
+    r"John Chrysostom|Chrysostom|Jerome|Athanasius|Clement of Alexandria|"
+    r"Irenaeus|Cyprian|Ambrose|Origen|the Gospel|Matthew|Mark|Luke|John|Romans)\b",
+    re.IGNORECASE,
+)
 
 
 @dataclass
@@ -49,6 +57,7 @@ class Citation:
     quote: str
     language: str
     rights_status: str
+    review_status: str = "unknown"
 
 
 @dataclass
@@ -105,6 +114,7 @@ def _citations_from(passages: list[Any]) -> list[Citation]:
                 quote=text,
                 language=_attr(p, "language", ""),
                 rights_status=_attr(p, "rights_status", ""),
+                review_status=_attr(p, "review_status", "unknown"),
             )
         )
     return out
@@ -194,6 +204,12 @@ def compose_guidance(
             "collection to cite the Fathers here."
         )
 
+    if any(c.review_status == "draft-unreviewed" for c in citations):
+        parts.append(
+            "A note on interpretation: these source excerpts are draft material "
+            "and have not been editorially reviewed."
+        )
+
     text = "\n".join(parts)
     return GuidanceResult(
         text=text,
@@ -207,6 +223,22 @@ def _quoted_spans(text: str) -> list[str]:
     """Extract spans between double quotation marks, pairwise (open, close)."""
     idxs = [i for i, ch in enumerate(text) if ch == '"']
     return [text[idxs[i] + 1 : idxs[i + 1]] for i in range(0, len(idxs) - 1, 2)]
+
+
+def _attributed_quotes(text: str) -> list[str]:
+    """Quoted spans presented as a named biblical or patristic source claim."""
+    idxs = [i for i, ch in enumerate(text) if ch == '"']
+    out = []
+    for i in range(0, len(idxs) - 1, 2):
+        start, end = idxs[i], idxs[i + 1]
+        context = text[max(0, start - 180) : min(len(text), end + 80)]
+        if _KNOWN_SOURCE.search(context) or re.search(
+            r"\b(?:as taught|as written|according to|quoted from|cited in)\b",
+            context,
+            re.IGNORECASE,
+        ):
+            out.append(text[start + 1 : end])
+    return out
 
 
 def assess_output(
@@ -231,7 +263,11 @@ def assess_output(
                 problems.append("prohibited_assistance")
                 break
 
-    texts = [p.text for p in passages or [] if p.text]
+    texts = [
+        getattr(p, "text", None) or getattr(p, "quote", None)
+        for p in passages or []
+        if getattr(p, "text", None) or getattr(p, "quote", None)
+    ]
     collapsed = [_collapse_ws(t) for t in texts]
 
     def supported(span: str) -> bool:
@@ -239,12 +275,12 @@ def assess_output(
         return c != "" and any(c in ct for ct in collapsed)
 
     # quoted spans not backed by any passage text
-    for span in _quoted_spans(candidate_text):
+    for span in _attributed_quotes(candidate_text):
         if span.strip() and not supported(span):
             problems.append("unsupported_quote")
 
     # asserted quotation with no passages at all
-    if _quoted_spans(candidate_text) and not texts:
+    if _attributed_quotes(candidate_text) and not texts:
         problems.append("missing_citation")
 
     return OutputCheck(ok=not problems, problems=problems)
@@ -262,6 +298,6 @@ def revise_once(
         revised = revise_fn(candidate_text, check.problems)
     except Exception:
         return candidate_text, False
-    if revised is None:
+    if not isinstance(revised, str) or not revised.strip():
         return candidate_text, False
     return revised, True

@@ -97,3 +97,6 @@ reason, final disposition (kept lower / averaged / escalated to owner),
 date. Keep as a standing document
 (`docs/evaluation/disagreements.md`) — never silently average away
 genuine interpretive differences.
+## Validated grade ingestion
+
+Use [`eval/grade.py`](grade.py) to bind external grades to original comparison/response hashes and preserve disagreement records. [Schema and commands](../docs/evaluation/human-grading.md). Null dimension scores mean reviewer-declared not applicability; missing grade records remain ungraded. Task completion requires a separate care-reviewer boolean/reason. Numeric summary rates use every supplied judgment conservatively and never resolve theological disputes or assert release readiness.

@@ -13,9 +13,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import sqlite3
+import tempfile
+from datetime import date
 from dataclasses import dataclass, field, fields
 from pathlib import Path
+from urllib.parse import urlparse
 
 UNIT_COLUMNS = (
     "id",
@@ -125,43 +129,85 @@ def validate_units(units: list[CorpusUnit]) -> list[str]:
     problems: list[str] = []
     seen: dict[str, int] = {}
     for i, u in enumerate(units):
-        p = lambda msg: problems.append(f"{u.id or f'#{i}'}: {msg}")  # noqa: E731
+        label = u.id if isinstance(u.id, str) and u.id else f"#{i}"
+        p = lambda msg: problems.append(f"{label}: {msg}")  # noqa: E731
 
-        if not u.id:
+        if not isinstance(u.id, str):
+            p("invalid id")
+        elif not u.id.strip():
             p("missing id")
         elif u.id in seen:
             p(f"duplicate id (first at index {seen[u.id]})")
         else:
             seen[u.id] = i
 
-        if not u.author:
-            p("missing author")
-        if not u.source_url:
-            p("missing source_url")
-        if not u.source_id:
-            p("missing source_id")
-        if not u.rights_status:
-            p("missing rights_status")
-        if u.language not in ("grc", "lat", "syr", "en"):
-            p(f"unknown language {u.language!r}")
-        if not u.retrieved:
-            p("missing retrieved date")
-        if not u.principle_ids:
-            p("no principle_ids")
+        for name in ("author", "work", "edition", "source_id", "rights_status"):
+            value = getattr(u, name)
+            if not isinstance(value, str):
+                p(f"invalid {name}")
+            elif not value.strip():
+                p(f"missing {name}")
+        if u.locus is not None and not isinstance(u.locus, str):
+            p("locus must be a string or null")
+        if u.translator is not None and not isinstance(u.translator, str):
+            p("translator must be a string or null")
 
-        if u.text is not None:
-            if not u.text_sha256:
+        for name in ("source_url", "rights_evidence"):
+            value = getattr(u, name)
+            if not isinstance(value, str) or not value.strip():
+                p(f"missing {name}")
+                continue
+            try:
+                parsed = urlparse(value)
+            except ValueError:
+                parsed = None
+            if not parsed or parsed.scheme not in {"http", "https"} or not parsed.netloc:
+                p(f"missing or invalid {name}")
+        if not isinstance(u.language, str) or u.language not in ("grc", "lat", "syr", "en"):
+            p(f"unknown language {u.language!r}")
+        if not isinstance(u.retrieved, str):
+            p("retrieved must be an ISO date")
+        else:
+            try:
+                if date.fromisoformat(u.retrieved).isoformat() != u.retrieved:
+                    p("retrieved must be an ISO date")
+            except ValueError:
+                p("retrieved must be an ISO date")
+
+        if not isinstance(u.principle_ids, list) or not u.principle_ids:
+            p("no principle_ids")
+        elif any(
+            not isinstance(pid, str) or not re.fullmatch(r"PEA-P(?:0[1-9]|10)", pid)
+            for pid in u.principle_ids
+        ):
+            p("principle_ids must contain PEA principle IDs")
+        elif len(set(u.principle_ids)) != len(u.principle_ids):
+            p("duplicate principle_ids")
+
+        if not isinstance(u.retrieval_verified, bool):
+            p("retrieval_verified must be boolean")
+        if u.text is not None and not isinstance(u.text, str):
+            p("text must be a string or null")
+        elif isinstance(u.text, str):
+            if not isinstance(u.text_sha256, str) or not u.text_sha256:
                 p("text present but text_sha256 missing")
             elif sha256_text(u.text) != u.text_sha256:
                 p("text_sha256 does not match stored text")
             if not u.text.strip():
                 p("text is empty/whitespace")
-        if u.text is None and u.retrieval_verified:
+        elif u.retrieval_verified:
             p("retrieval_verified true but text is null")
+        if u.text is None and u.text_sha256 is not None:
+            p("null text must not have text_sha256")
 
-        if u.review_status and u.review_status != "draft-unreviewed":
-            if not u.rights_evidence:
-                p(f"review_status {u.review_status!r} requires rights_evidence")
+        if not isinstance(u.review_status, str) or u.review_status not in {
+            "draft-unreviewed", "reviewed"
+        }:
+            p(f"invalid review_status {u.review_status!r}")
+        elif u.review_status == "reviewed" and (
+            not isinstance(u.text, str) or not u.retrieval_verified
+        ):
+            p("reviewed unit requires verified source text")
     return problems
 
 
@@ -213,48 +259,53 @@ END;
 
 
 def build_db(seed_path: str | Path, db_path: str | Path) -> Path:
-    """Deterministically build the SQLite index: delete + recreate, then load
-    every seed unit. Returns the db path."""
+    """Build a replacement index, publishing it only after a successful commit."""
     db_path = Path(db_path)
     units = load_seed(seed_path)
     problems = validate_units(units)
     if problems:
         raise ValueError("refusing to index corpus with problems: " + "; ".join(problems))
-    if db_path.exists():
-        db_path.unlink()
-    conn = sqlite3.connect(db_path)
+    # Same directory keeps replacement atomic on the destination filesystem.
+    with tempfile.NamedTemporaryFile(dir=db_path.parent, prefix=f".{db_path.name}.",
+                                     suffix=".tmp", delete=False) as staged:
+        staged_path = Path(staged.name)
     try:
-        conn.executescript(_SCHEMA)
-        for u in units:
-            conn.execute(
-                _INSERT_UNITS_SQL,
-                (
-                    u.id,
-                    json.dumps(u.principle_ids),
-                    u.author,
-                    u.work,
-                    u.locus,
-                    u.language,
-                    u.edition,
-                    u.translator,
-                    u.source_id,
-                    u.source_url,
-                    u.rights_status,
-                    u.rights_evidence,
-                    u.retrieved,
-                    u.text,
-                    u.text_sha256,
-                    u.offset_start,
-                    u.offset_end,
-                    u.cts_urn,
-                    u.review_status,
-                    1 if u.retrieval_verified else 0,
-                    u.note,
-                ),
-            )
-        conn.commit()
+        conn = sqlite3.connect(staged_path)
+        try:
+            conn.executescript(_SCHEMA)
+            for u in units:
+                conn.execute(
+                    _INSERT_UNITS_SQL,
+                    (
+                        u.id,
+                        json.dumps(u.principle_ids),
+                        u.author,
+                        u.work,
+                        u.locus,
+                        u.language,
+                        u.edition,
+                        u.translator,
+                        u.source_id,
+                        u.source_url,
+                        u.rights_status,
+                        u.rights_evidence,
+                        u.retrieved,
+                        u.text,
+                        u.text_sha256,
+                        u.offset_start,
+                        u.offset_end,
+                        u.cts_urn,
+                        u.review_status,
+                        1 if u.retrieval_verified else 0,
+                        u.note,
+                    ),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+        staged_path.replace(db_path)
     finally:
-        conn.close()
+        staged_path.unlink(missing_ok=True)
     return db_path
 
 

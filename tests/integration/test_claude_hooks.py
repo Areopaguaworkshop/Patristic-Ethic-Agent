@@ -270,7 +270,7 @@ def test_main_malformed_stdin_exit0_empty_stdout(monkeypatch) -> None:
     assert "fail-open" in stderr
 
 
-def test_main_runner_raises_exit0_empty_stdout(monkeypatch) -> None:
+def test_main_runner_raises_blocks_pretooluse(monkeypatch) -> None:
     def runner(_envelope: str) -> str:
         raise RuntimeError("cli timeout")
 
@@ -278,8 +278,8 @@ def test_main_runner_raises_exit0_empty_stdout(monkeypatch) -> None:
         monkeypatch, json.dumps(payload("PreToolUse")), runner
     )
     assert code == 0
-    assert stdout == ""
-    assert "fail-open" in stderr
+    assert json.loads(stdout)["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert "supported event blocked" in stderr
 
 
 def test_main_unmapped_event_fail_open(monkeypatch) -> None:
@@ -291,13 +291,13 @@ def test_main_unmapped_event_fail_open(monkeypatch) -> None:
     assert "fail-open" in stderr
 
 
-def test_main_bad_runner_output_fail_open(monkeypatch) -> None:
+def test_main_bad_runner_output_still_warns_on_posthoc_event(monkeypatch) -> None:
     code, stdout, stderr = _run_main(
         monkeypatch, json.dumps(payload("Stop")), lambda _e: "not json"
     )
     assert code == 0
     assert stdout == ""
-    assert "fail-open" in stderr
+    assert "assessment failed" in stderr
 
 
 def test_handle_proceed_returns_none_without_diag() -> None:

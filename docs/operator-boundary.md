@@ -18,9 +18,12 @@ then record honestly what code denies and what needs an OS/sandbox boundary.
 | `check_action` never returns a resolution mechanism (no token, no resolved_by/note; `review_id` may be exposed) | `mcp_server.py` | `test_check_action_returns_no_resolution_mechanism` |
 | Refuse/non-overridable decisions never open reviews (`ReviewNotAllowed`) | `open_review` | test_review.py |
 | Approved→denied/duplicate/denied-approval transitions blocked; expired→denied requires a note | resolver | test_review.py |
-| Reviews bound to session + action/context digests + policy version + expiry; drift → `reassess_required` | store | `test_direct_db_write_is_not_prevented_same_user` (guard re-verified), test_review.py |
-| At-most-once dispatch: one-shot `claim_dispatch`, no auto-retry, `stuck_attempts` is view-only | store | `test_stuck_attempt_never_auto_dispatches` |
+| Reviews bound to session + action/context digests + policy version + expiry; drift → `reassess_required`; dispatch claim checks the same reviewed values | store | `test_dispatch_requires_original_action_context_and_policy`, test_review.py |
+| At-most-once dispatch: one-shot `claim_dispatch` for matching approved values, no auto-retry, `stuck_attempts` is view-only | store | `test_stuck_attempt_never_auto_dispatches` |
 | Event audit idempotent on hook retries (PK event_id, INSERT OR IGNORE) | store | test_review.py |
+| Review records retain exact action/context JSON and PEA reason for human inspection; repeated identical pending reviews reuse the same record | `runtime_store.py` | `test_open_and_get_review_roundtrip`, `test_matching_pending_review_is_reused` |
+| `pea-operator list/show/resolve` provides a local review workflow; resolution still requires the configured token and a note | `operator.py` | `tests/test_operator_cli.py` |
+| Proxy retries are reassessed, then may claim only an approved unexpired review matching the proxy process, tool, arguments, and policy; the downstream result marks it dispatched | `proxy.py`, `runtime_store.py` | `test_approved_reviewed_retry_forwards_once_and_marks_dispatch` |
 
 ## NOT enforced by code on this box (honest gaps)
 
@@ -55,6 +58,21 @@ Until then, the env-token check is a **placeholder** recorded as such in
 `runtime_store.py`'s docstring; the real M3 acceptance evidence is the
 OS/sandbox denial results below.
 
+The operator console is a workflow surface, not an authorization boundary.
+It reads stored action/context data so the reviewer can inspect the case;
+the runtime database can therefore contain sensitive request and tool
+arguments and must be protected by the deployment identity. The stdio proxy
+uses a random process-scoped session, so a different proxy process cannot
+consume an approval; restarting the proxy intentionally makes that approval
+unusable. A downstream call that raises after the one-shot claim stays
+`attempted` and is never retried automatically.
+
+The dispatch claim also checks that the action, context and policy version
+still match the values reviewed. The workflow now renders the pending case,
+reassesses on a user-initiated proxy retry, and dispatches only after an exact
+one-shot claim. OS-level isolation remains unproven and is still required
+before this operator path can be enabled in a shell-capable agent profile.
+
 ## Residual risk + what to re-test on a real deployment
 
 Residual (post-boundary) risks: token exfiltration via operator compromise;
@@ -75,3 +93,16 @@ outside PEA (plan risk table). Record denial results as evidence:
 uv run pytest -q tests/test_operator_boundary.py   # boundary proof (offline)
 uv run pytest -q                                    # full suite
 ```
+
+## Dispatch crash/replay checks — 2026-10-08
+
+`tests/integration/test_dispatch_recovery.py` abruptly terminates worker processes with `os._exit` after claiming approval, after a durable local test effect, and after recording completion. Each fresh worker reopens the same SQLite database and cannot reclaim the original approval. Four competing processes produce exactly one claim/effect. Official MCP client round trips also cover a downstream exception after an effect and a completion-record exception: both surface protocol errors, leave the original review `attempted`, and prevent a repeated call from forwarding under that approval. These tests use local test effects; they do not establish exactly-once behavior for arbitrary downstream services.
+
+Inspect unresolved attempts without retrying them:
+
+```sh
+.venv/bin/python -m patristic_ethics.operator --db corpus/runtime.db attempts
+.venv/bin/python -m patristic_ethics.operator --db corpus/runtime.db show REVIEW_ID
+```
+
+`attempts` includes every unresolved attempt immediately, with its review/session ID and claim time. It does not reset state or dispatch. An `attempted` record can mean no effect, a completed effect with a lost reply, or a failed completion record. Establish the external outcome before deciding whether a new reviewed action is safe. A repeated proxy call may open a new pending review; it never automatically approves it or reuses the consumed approval. New proxy processes have new session IDs and cannot reuse old session approvals. Separate OS identity and credential/database isolation remain deployment requirements and are still unproven.

@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 from . import corpus, guidance, policy
-from .interpreter import InterpreterUnavailable
+from .interpreter import InterpreterFailure, InterpreterUnavailable
 
 if TYPE_CHECKING:
     from .context import ContextEnvelope
@@ -55,18 +55,36 @@ class AssessResult:
 
 
 def _stage_request(envelope: "ContextEnvelope") -> str:
-    """Request text for the stage, building a copy — envelope untouched."""
-    text = envelope.request
-    if envelope.stage == "pre_action" and envelope.proposed_action is not None:
-        text += "\nProposed action: " + json.dumps(
-            {
-                "tool": envelope.proposed_action.tool,
-                "arguments": envelope.proposed_action.arguments,
-            }
+    """The original user request; action/output are separate trusted fields."""
+    return envelope.request
+
+
+def _validate_observation_evidence(obs, envelope: "ContextEnvelope") -> None:
+    """Reject model evidence that is not an exact quote from supplied context."""
+    sources = {"current_request": envelope.request}
+    if envelope.candidate_response is not None:
+        sources["candidate_response"] = envelope.candidate_response
+    if envelope.proposed_action is not None:
+        action = envelope.proposed_action
+        sources["proposed_action"] = (
+            f"{action.tool} "
+            f"{json.dumps(action.arguments, sort_keys=True, ensure_ascii=False)}"
         )
-    elif envelope.stage == "output" and envelope.candidate_response is not None:
-        text += "\nCandidate response: " + envelope.candidate_response
-    return text
+    for message in envelope.messages:
+        sources[message.source_id] = message.text
+    for excerpt in envelope.earlier_excerpts:
+        sources[excerpt.source_id] = excerpt.text
+    if envelope.summary is not None:
+        sources[envelope.summary.source_id] = envelope.summary.text
+
+    if (obs.topics or obs.assistance_type != "uncertain") and not obs.evidence:
+        raise ValueError("structured judgment has no source evidence")
+    for evidence in obs.evidence:
+        source = sources.get(evidence.source_id)
+        if source is None or not evidence.quote.strip():
+            raise ValueError(f"evidence source is missing: {evidence.source_id}")
+        if " ".join(evidence.quote.split()) not in " ".join(source.split()):
+            raise ValueError(f"evidence quote does not match source: {evidence.source_id}")
 
 
 def _default_verify(db_path, units: list):
@@ -143,8 +161,20 @@ def assess(
         staged = envelope.model_copy(deep=True)
         staged.request = _stage_request(envelope)
         obs = interpreter.interpret(staged)
+        _validate_observation_evidence(obs, envelope)
     except InterpreterUnavailable as e:
         failure = e.failure
+        action = "withhold" if envelope.stage == "output" else "clarify"
+        guidance_result = _withheld_guidance()
+        return _finish(
+            action, decision, guidance_result, failure, audit, start, output_check_problems
+        )
+    except (TypeError, ValueError) as e:
+        failure = InterpreterFailure(
+            reason="interpreter evidence failed validation",
+            detail=str(e),
+            kind="schema",
+        )
         action = "withhold" if envelope.stage == "output" else "clarify"
         guidance_result = _withheld_guidance()
         return _finish(
@@ -192,23 +222,23 @@ def assess(
         guidance_result.citations, verifier
     )
 
-    if envelope.stage == "output" and decision.disposition == "refuse":
+    if envelope.stage == "output":
         candidate = envelope.candidate_response or ""
         check = guidance.assess_output(candidate, decision, units)
-        if not check.ok:
-            revised, used = guidance.revise_once(
-                candidate, check, lambda text, problems: None
-            )
-            # ponytail: revise_fn returns None by design -> fall back to the
-            # composed refuse guidance; the candidate is never released.
-            guidance_result = guidance.compose_guidance(
-                decision,
-                passages=units,
-                principle_descriptions=descriptions,
-            )
+        citation_problem = any(
+            problem in ("unsupported_quote", "missing_citation")
+            for problem in check.problems
+        )
+        if check.problems:
             output_check_problems = check.problems
+        if citation_problem and decision.disposition != "refuse":
+            guidance_result = _withheld_guidance()
+            action = "withhold"
+        else:
+            action = _ACTION_FOR_DISPOSITION.get(decision.disposition, "withhold")
+    else:
+        action = _ACTION_FOR_DISPOSITION.get(decision.disposition, "withhold")
 
-    action = _ACTION_FOR_DISPOSITION.get(decision.disposition, "withhold")
     return _finish(
         action, decision, guidance_result, failure, audit, start, output_check_problems
     )

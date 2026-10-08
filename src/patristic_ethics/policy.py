@@ -202,7 +202,12 @@ def derive_signals(observation: "Observation") -> Signals:
     """
     req = observation.requested_assistance.lower()
     intent = observation.expressed_intent.lower()
-    facilitation = any(m in req or m in intent for m in FACILITATION_MARKERS)
+    if observation.assistance_type == "facilitation":
+        facilitation = True
+    elif observation.assistance_type in ("benign_discussion", "support_seeking"):
+        facilitation = False
+    else:
+        facilitation = any(m in req or m in intent for m in FACILITATION_MARKERS)
     distress = any(m in req or m in intent for m in DISTRESS_MARKERS)
     ambiguity = bool(observation.unresolved_ambiguity) or any(
         w in intent for w in AMBIGUITY_WORDS

@@ -1,0 +1,1 @@
+{"elapsed_s": 27.94, "action": "clarify", "disposition": null, "failure_kind": "schema", "failure_reason": "interpreter evidence failed validation", "failure_detail": "structured judgment has no source evidence", "usage": {"prompt_tokens": 263, "completion_tokens": 101}}

@@ -5,15 +5,19 @@ network, nothing written to disk by the client.
 """
 
 import io
+import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from patristic_ethics.assess import AssessResult
 from patristic_ethics.controlled import (
+    CONTROLLED_CONFIG,
     HostOutput,
     ControlledClient,
     WITHHELD_MESSAGE,
+    controlled_profile_error,
     _parser,
     main,
     parse_host_stdout,
@@ -41,9 +45,9 @@ def _client(runner, in_res, out_res=None):
         assert out_res is not None, "host ran but no output assessment scripted"
         return out_res
 
-    def r(prompt):
+    def r(prompt, session_id=None):
         calls["runner"] += 1
-        return runner(prompt)
+        return runner(prompt, session_id=session_id) if session_id else runner(prompt)
 
     return ControlledClient(runner=r, assessor=assessor), calls
 
@@ -84,6 +88,171 @@ def test_parse_host_stdout_non_json_line_is_failure():
     out = parse_host_stdout("not json\n" + json_dumps("secret"))
     assert out.failure is not None
     assert out.text == ""
+
+
+def test_parse_host_stdout_rejects_mixed_session_ids():
+    lines = '{"type":"step-start","sessionID":"s1"}\n' + json.dumps(
+        {"type": "step-start", "sessionID": "s2"}
+    )
+    out = parse_host_stdout(lines)
+    assert out.failure == "stdout contains multiple OpenCode sessions"
+
+
+def test_resolved_profile_must_deny_all_tools_and_mcp():
+    safe = json.dumps(CONTROLLED_CONFIG)
+    assert controlled_profile_error(safe) is None
+
+    enabled = json.loads(safe)
+    enabled["permission"]["bash"] = "allow"
+    assert "not deny-all" in controlled_profile_error(json.dumps(enabled))
+
+    enabled = json.loads(safe)
+    enabled["agent"]["pea-controlled"]["tools"]["bash"] = True
+    assert "enables" in controlled_profile_error(json.dumps(enabled))
+
+    enabled = json.loads(safe)
+    enabled["mcp"]["external"] = {"type": "local", "command": ["x"]}
+    assert "MCP servers" in controlled_profile_error(json.dumps(enabled))
+
+
+def test_controlled_client_resumes_only_previously_released_turns():
+    seen = []
+
+    def runner(prompt, session_id=None):
+        seen.append((prompt, session_id))
+        return HostOutput(text=f"answer to {prompt}", session_id="host-session")
+
+    client, calls = _client(
+        runner=runner,
+        in_res=_res("proceed"),
+        out_res=_res("proceed"),
+    )
+    first = client.run("first request")
+    second = client.run("follow-up")
+
+    assert seen == [("first request", None), ("follow-up", "host-session")]
+    assert second.audit["session"] == first.audit["session"]
+    second_input = [e for e in calls["assessor"] if e.stage == "input"][1]
+    assert second_input.history.complete is True
+    assert [(m.role, m.text) for m in second_input.messages] == [
+        ("user", "first request"),
+        ("assistant", "answer to first request"),
+    ]
+
+
+def test_replaced_output_is_not_retained_for_a_later_turn():
+    seen = []
+    prompts = []
+
+    def runner(prompt, session_id=None):
+        seen.append(session_id)
+        prompts.append(prompt)
+        return HostOutput(text="replaced candidate", session_id="host-session")
+
+    client, calls = _client(
+        runner=runner,
+        in_res=_res("proceed"),
+        out_res=_res("guide", "PEA guidance"),
+    )
+    client.run("first")
+    client.run("second")
+
+    inputs = [e for e in calls["assessor"] if e.stage == "input"]
+    assert seen == [None, None]
+    assert [(m.role, m.text) for m in inputs[1].messages] == [
+        ("user", "first"),
+        ("assistant", "PEA guidance"),
+    ]
+    assert "replaced candidate" not in prompts[1]
+    assert "PEA guidance" in prompts[1]
+    assert inputs[1].history.complete is True
+
+
+def test_a_different_session_id_cannot_reuse_prior_dialogue():
+    seen = []
+
+    def runner(prompt, session_id=None):
+        seen.append(session_id)
+        return HostOutput(text="answer", session_id=f"host-{len(seen)}")
+
+    client, calls = _client(
+        runner=runner,
+        in_res=_res("proceed"),
+        out_res=_res("proceed"),
+    )
+    client.run("private first session", session_id="session-a")
+    client.run("new session", session_id="session-b")
+
+    inputs = [e for e in calls["assessor"] if e.stage == "input"]
+    assert seen == [None, None]
+    assert inputs[1].messages == []
+    assert inputs[1].session.id == "session-b"
+
+
+def test_opencode_runner_forces_tools_off_over_inherited_config(monkeypatch):
+    import json
+    import subprocess
+    import patristic_ethics.controlled as controlled
+
+    captured = {}
+    commands = []
+
+    def fake_run(argv, **kwargs):
+        commands.append(argv)
+        captured.update(kwargs)
+        stdout = json.dumps(CONTROLLED_CONFIG) if "debug" in argv else ""
+        return subprocess.CompletedProcess(argv, 0, stdout=stdout, stderr="")
+
+    monkeypatch.setenv("OPENCODE_CONFIG_CONTENT", '{"permission":{"*":"allow"}}')
+    monkeypatch.setattr(controlled.subprocess, "run", fake_run)
+    controlled.opencode_runner("hello", workdir=".", model="test/model")
+
+    config = json.loads(captured["env"]["OPENCODE_CONFIG_CONTENT"])
+    assert config == CONTROLLED_CONFIG
+    assert config["permission"]["*"] == "deny"
+    assert config["agent"]["pea-controlled"]["tools"]["*"] is False
+    assert config["plugin"] == []
+    assert commands[0] == ["opencode", "debug", "config", "--pure"]
+    assert "--pure" in commands[1]
+    assert commands[1][commands[1].index("--agent") + 1] == "pea-controlled"
+
+
+def test_opencode_runner_resumes_the_session_it_was_given(monkeypatch):
+    import subprocess
+    import patristic_ethics.controlled as controlled
+
+    captured = {}
+
+    def fake_run(argv, **kwargs):
+        captured["argv"] = argv
+        stdout = json.dumps(CONTROLLED_CONFIG) if "debug" in argv else ""
+        return subprocess.CompletedProcess(argv, 0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(controlled.subprocess, "run", fake_run)
+    controlled.opencode_runner(
+        "follow-up", workdir=".", model="test/model", session_id="session-1"
+    )
+    assert captured["argv"][captured["argv"].index("--session") + 1] == "session-1"
+
+
+def test_opencode_runner_never_launches_when_resolved_policy_allows_a_tool(monkeypatch):
+    import subprocess
+    import patristic_ethics.controlled as controlled
+
+    commands = []
+    config = json.loads(json.dumps(CONTROLLED_CONFIG))
+    config["permission"]["bash"] = "allow"
+
+    def fake_run(argv, **kwargs):
+        commands.append(argv)
+        stdout = json.dumps(config) if "debug" in argv else ""
+        return subprocess.CompletedProcess(argv, 0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(controlled.subprocess, "run", fake_run)
+    out = controlled.opencode_runner("do work", workdir=".", model="test/model")
+    assert out.failure == "OpenCode resolved permissions are not deny-all"
+    assert len(commands) == 1
+    assert commands[0][:3] == ["opencode", "debug", "config"]
 
 
 # --- input gate: host never invoked ---
@@ -156,8 +325,40 @@ def test_allow_and_output_proceed_releases_buffered_concatenation():
     out_env = calls["assessor"][1]
     assert out_env.candidate_response == "".join(parts)
     in_env = calls["assessor"][0]
-    assert in_env.history.complete is False
-    assert "fresh session" in in_env.history.collection_errors
+    assert in_env.history.complete is True
+    assert in_env.messages == []
+
+
+def test_allowed_candidate_with_unverified_patristic_quote_is_withheld():
+    client, _ = _client(
+        runner=lambda prompt: HostOutput(
+            text='Augustine said "The moon is made of cheese."'
+        ),
+        in_res=_res("proceed"),
+        out_res=_res("proceed"),
+    )
+    result = client.run("What did Augustine teach?")
+    assert result.action == "withhold"
+    assert result.released_text == WITHHELD_MESSAGE
+    assert "moon is made of cheese" not in result.released_text
+
+
+def test_any_failed_output_check_withholds_even_if_action_says_proceed():
+    mismatched_assessment = AssessResult(
+        action="proceed",
+        decision=SimpleNamespace(disposition="refuse"),
+        guidance=GuidanceResult(text="PEA refusal guidance"),
+    )
+    client, _ = _client(
+        runner=lambda prompt: HostOutput(text="Instructions to poison someone."),
+        in_res=_res("proceed"),
+        out_res=mismatched_assessment,
+    )
+    result = client.run("explain safe chemistry")
+    assert result.action == "withhold"
+    assert result.released_text == WITHHELD_MESSAGE
+    assert "Instructions to poison" not in result.released_text
+    assert result.failure == "assessment failed: ValueError"
 
 
 def test_output_refuse_replaces_with_guidance_buffer_discarded():
@@ -201,14 +402,15 @@ def test_output_guide_replaces_with_guidance():
 
 def test_runner_raises_withholds_and_keeps_input_allow():
     def bad_runner(prompt):
-        raise RuntimeError("boom")
+        raise RuntimeError("UNREVIEWED_CANDIDATE_MARKER")
 
     client, calls = _client(runner=bad_runner, in_res=_res("proceed"))
     result = client.run("x")
     assert result.model_invoked is True
     assert result.action == "withhold"
     assert result.released_text == WITHHELD_MESSAGE
-    assert result.failure and "boom" in result.failure
+    assert result.failure == "host runner raised RuntimeError"
+    assert "UNREVIEWED_CANDIDATE_MARKER" not in result.released_text
     assert result.input_assessment.action == "proceed"
     assert result.output_assessment is None
 
@@ -242,7 +444,7 @@ def test_audit_fields_and_stable_prompt_digest():
     assert r1.audit["prompt_digest"] == r2.audit["prompt_digest"]
     assert r1.audit["buffered_chars"] == 3
     assert r1.audit["released_chars"] == 3
-    assert r1.audit["session"] != r2.audit["session"]
+    assert r1.audit["session"] == r2.audit["session"]
 
 
 # --- CLI wrapper ---
@@ -276,8 +478,11 @@ def _patch_init(self, assessor):
 
     self.policy_version = "test"
     self.corpus_version = mod.DEFAULT_CORPUS_VERSION
-    self.runner = lambda prompt: HostOutput(text="one two three")
+    self.runner = lambda prompt, session_id=None: HostOutput(text="one two three")
     self.assessor = assessor
+    self._controlled_session_id = None
+    self._host_session_id = None
+    self._visible_history = []
 
 
 def test_main_setup_failure_exits_one(monkeypatch, capsys):
@@ -308,8 +513,66 @@ def test_module_source_has_no_file_write_of_buffered_content():
 
 def test_parser_requires_prompt_and_model():
     with pytest.raises(SystemExit):
-        _parser().parse_args([])
+        main(["--model", "m"])
     with pytest.raises(SystemExit):
         _parser().parse_args(["--prompt", "x"])
     args = _parser().parse_args(["--prompt", "x", "--model", "m"])
     assert args.backend == "fake"
+    interactive = _parser().parse_args(["--interactive", "--model", "m"])
+    assert interactive.interactive is True
+
+
+def test_interactive_cli_gates_each_turn_and_keeps_diagnostics_off_stdout(monkeypatch, capsys):
+    def fake_assessor(envelope):
+        return _res("proceed")
+
+    monkeypatch.setattr(
+        "patristic_ethics.controlled.ControlledClient.__init__",
+        lambda self, **kw: _patch_init(self, fake_assessor),
+    )
+    monkeypatch.setattr("sys.stdin", io.StringIO("hello\n/quit\n"))
+    rc = main(["--interactive", "--model", "ollama/x"])
+    assert rc == 0
+    out = capsys.readouterr()
+    assert out.out.splitlines() == ["one two three"]
+    assert "you>" in out.err
+
+
+@pytest.mark.parametrize("stage", ["input", "output"])
+@pytest.mark.parametrize("fault", ["exception", "missing", "unknown-action", "failure-proceed"])
+def test_unexpected_assessor_failure_withholds_and_recovers(stage, fault):
+    calls = []
+    fail = True
+    marker = "UNREVIEWED_CANDIDATE_MARKER"
+
+    def assessor(envelope):
+        if fail and envelope.stage == stage:
+            if fault == "exception":
+                raise RuntimeError(marker)
+            if fault == "missing":
+                return None
+            if fault == "failure-proceed":
+                from patristic_ethics.interpreter import InterpreterFailure
+                return AssessResult(action="proceed", failure=InterpreterFailure(reason=marker))
+            return AssessResult(action="invalid")
+        return AssessResult(action="proceed")
+
+    def runner(prompt, session_id=None):
+        calls.append((prompt, session_id))
+        return HostOutput(text=marker, session_id="host-session")
+
+    client = ControlledClient(runner=runner, assessor=assessor)
+    result = client.run("hello")
+    assert result.action == "withhold"
+    assert result.released_text == WITHHELD_MESSAGE
+    assert result.model_invoked is (stage == "output")
+    assert len(calls) == (1 if stage == "output" else 0)
+    assert result.failure == "assessment failed: " + ("RuntimeError" if fault == "exception" else "ValueError")
+    assert marker not in result.failure
+    assert marker not in json.dumps(client._visible_history)
+    assert client._host_session_id is None
+    fail = False
+    recovered = client.run("next")
+    assert recovered.action == "proceed"
+    assert recovered.released_text == marker
+    assert calls[-1][1] is None

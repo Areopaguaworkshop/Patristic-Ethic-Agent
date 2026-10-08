@@ -1,0 +1,1 @@
+{"elapsed_s": 60.2, "action": "clarify", "disposition": null, "failure_kind": "timeout", "failure_reason": "ollama call timed out", "failure_detail": "timed out", "usage": null}

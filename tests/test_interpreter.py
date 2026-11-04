@@ -100,7 +100,7 @@ def test_ollama_explicit_context_and_thinking_options():
     interp._client = client
     interp.interpret(build_envelope(request="write a poem"))
     assert client.chat.call_args.kwargs["think"] is False
-    assert client.chat.call_args.kwargs["options"] == {"temperature": 0, "num_predict": 512, "num_ctx": 4096}
+    assert client.chat.call_args.kwargs["options"] == {"temperature": 0, "num_predict": 2048, "num_ctx": 4096}
 
 
 @pytest.mark.parametrize("options", [{"num_ctx": 0}, {"num_ctx": True}, {"think": "off"}])
@@ -204,7 +204,7 @@ def test_ollama_sends_schema_and_zero_temperature(monkeypatch):
     assert "assistance_type" in schema["required"]
     assert all(schema["properties"][k]["maxItems"] == 10 for k in ("evidence", "topics"))
     assert schema["properties"]["evidence"]["minItems"] == 1
-    assert kwargs["options"] == {"temperature": 0, "num_predict": 512}
+    assert kwargs["options"] == {"temperature": 0, "num_predict": 2048}
     assert kwargs["model"] == "test-model"
     assert "tools" not in kwargs or not kwargs["tools"]
 

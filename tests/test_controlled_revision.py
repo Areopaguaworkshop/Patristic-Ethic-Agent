@@ -1,5 +1,6 @@
 """One optional revision, full rechecking, and quarantined host history."""
 import json
+from types import SimpleNamespace
 
 import pytest
 
@@ -12,6 +13,10 @@ BAD = 'Augustine said "the moon is made of cheese".'
 SAFE = "Here is a safe answer without invented quotations."
 
 
+def _proceed():
+    return AssessResult(action="proceed", decision=SimpleNamespace(disposition="allow"))
+
+
 def make_client(revision=SAFE, *, enabled=True, second_action="proceed", second_failure=False, callback=None):
     calls, assessed = [], []
     def runner(prompt, session_id=None):
@@ -20,12 +25,16 @@ def make_client(revision=SAFE, *, enabled=True, second_action="proceed", second_
         return HostOutput(text=text, session_id="candidate-session")
     def assessor(envelope):
         if envelope.stage == "input":
-            return AssessResult(action="proceed")
+            return _proceed()
         assessed.append(envelope.candidate_response)
         if second_failure and len(assessed) == 2:
             raise RuntimeError("UNREVIEWED_EXCEPTION_MARKER")
-        return AssessResult(action="proceed" if len(assessed) == 1 else second_action,
-                            guidance=GuidanceResult(text="Reviewed PEA alternative"))
+        return AssessResult(
+            action="proceed" if len(assessed) == 1 else second_action,
+            decision=SimpleNamespace(disposition="allow")
+            if len(assessed) == 1 or second_action == "proceed" else None,
+            guidance=GuidanceResult(text="Reviewed PEA alternative"),
+        )
     client = ControlledClient(runner=runner, assessor=assessor, allow_revision=enabled, revise_fn=callback)
     return client, calls, assessed
 
@@ -89,7 +98,7 @@ def test_revision_is_disabled_by_default_and_good_outputs_never_revise():
     client, calls, assessed = make_client(enabled=False)
     assert client.run("question").released_text == WITHHELD_MESSAGE
     assert len(calls) == 1
-    client = ControlledClient(allow_revision=True, assessor=lambda env: AssessResult(action="proceed"),
+    client = ControlledClient(allow_revision=True, assessor=lambda env: _proceed(),
                               runner=lambda prompt, session_id=None: HostOutput(text=SAFE),
                               revise_fn=lambda *args: pytest.fail("already valid output must not revise"))
     assert client.run("question").released_text == SAFE
@@ -101,7 +110,7 @@ def test_evaluator_failure_never_invokes_revision(stage):
     def assessor(env):
         if env.stage == stage:
             return AssessResult(action="withhold", failure=InterpreterFailure(reason="unavailable"))
-        return AssessResult(action="proceed")
+        return _proceed()
     def runner(prompt, session_id=None):
         calls.append(prompt)
         return HostOutput(text=BAD)
@@ -116,10 +125,13 @@ def test_semantic_replacement_also_can_request_one_checked_revision():
     seen = []
     def assessor(env):
         if env.stage == "input":
-            return AssessResult(action="proceed")
+            return _proceed()
         seen.append(env.candidate_response)
-        return AssessResult(action="refuse" if len(seen) == 1 else "proceed",
-                            guidance=GuidanceResult(text="Reviewed alternative"))
+        return AssessResult(
+            action="refuse" if len(seen) == 1 else "proceed",
+            decision=SimpleNamespace(disposition="allow") if len(seen) > 1 else None,
+            guidance=GuidanceResult(text="Reviewed alternative"),
+        )
     client = ControlledClient(allow_revision=True, assessor=assessor,
                               runner=lambda prompt, session_id=None: HostOutput(text="bad answer"),
                               revise_fn=lambda candidate, problems: SAFE)
@@ -132,10 +144,10 @@ def test_revision_cannot_release_when_proceed_conflicts_with_semantic_refusal():
     seen = []
     def assessor(env):
         if env.stage == "input":
-            return AssessResult(action="proceed")
+            return _proceed()
         seen.append(env.candidate_response)
         if len(seen) == 1:
-            return AssessResult(action="proceed")
+            return _proceed()
         return AssessResult(action="proceed", decision=SimpleNamespace(disposition="refuse"))
     client = ControlledClient(allow_revision=True, assessor=assessor,
                               runner=lambda prompt, session_id=None: HostOutput(text=BAD),

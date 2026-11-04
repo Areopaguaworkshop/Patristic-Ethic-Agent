@@ -260,6 +260,7 @@ def test_handle_refuse_pre_tool_use_deny() -> None:
 def test_handle_proceed_returns_none() -> None:
     result = refuse_result()
     result["action"] = "proceed"
+    result["decision"] = {"disposition": "allow"}
     assert cx.handle(prompt_payload(), runner=refuse_runner(result)) is None
 
 
@@ -332,6 +333,7 @@ def test_main_runner_timeout_blocks_input(monkeypatch) -> None:
 def test_main_proceed_no_output(monkeypatch) -> None:
     result = refuse_result()
     result["action"] = "proceed"
+    result["decision"] = {"disposition": "allow"}
     code, out, err = run_main(monkeypatch, json.dumps(prompt_payload()), refuse_runner(result))
     assert code == 0 and out == ""
 

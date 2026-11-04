@@ -29,8 +29,10 @@ MODULE_SRC = Path(__file__).parent.parent / "src" / "patristic_ethics" / "contro
 
 
 def _res(action, text=None):
+    decision = SimpleNamespace(disposition="allow") if action == "proceed" else None
     return AssessResult(
         action=action,
+        decision=decision,
         guidance=GuidanceResult(text=text if text is not None else f"PEA-{action}-text"),
     )
 
@@ -555,7 +557,7 @@ def test_unexpected_assessor_failure_withholds_and_recovers(stage, fault):
                 from patristic_ethics.interpreter import InterpreterFailure
                 return AssessResult(action="proceed", failure=InterpreterFailure(reason=marker))
             return AssessResult(action="invalid")
-        return AssessResult(action="proceed")
+        return AssessResult(action="proceed", decision=SimpleNamespace(disposition="allow"))
 
     def runner(prompt, session_id=None):
         calls.append((prompt, session_id))
@@ -576,3 +578,25 @@ def test_unexpected_assessor_failure_withholds_and_recovers(stage, fault):
     assert recovered.action == "proceed"
     assert recovered.released_text == marker
     assert calls[-1][1] is None
+
+
+def test_validate_result_requires_allow_decision_for_proceed():
+    from patristic_ethics.adapters.result import validate_result
+
+    with pytest.raises(ValueError, match="proceed requires an allow decision"):
+        validate_result({"action": "proceed"})
+    with pytest.raises(ValueError, match="proceed requires an allow decision"):
+        validate_result({"action": "proceed", "decision": None})
+    assert validate_result(
+        {"action": "proceed", "decision": {"disposition": "allow"}}
+    )["action"] == "proceed"
+
+
+def test_controlled_proceed_without_allow_decision_withholds():
+    client = ControlledClient(
+        assessor=lambda envelope: AssessResult(action="proceed"),
+        runner=lambda prompt, session_id=None: HostOutput(text="unreviewed"),
+    )
+    result = client.run("hello")
+    assert result.action == "withhold"
+    assert result.released_text == WITHHELD_MESSAGE

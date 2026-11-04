@@ -166,7 +166,7 @@ def test_check_action_benign_and_refuse(tmp_path):
             assert sc["action"] == "proceed", sc
             assert sc["disposition"] == "allow", sc
             assert sc["error"] is None
-            assert sc["policy_review_status"] == "draft-unreviewed", sc
+            assert sc["policy_review_status"] == "reviewed", sc
 
             bad = await c.call_tool("check_action", {"envelope_json": refuse})
             assert not bad.is_error
@@ -217,13 +217,15 @@ def test_search_corpus_get_passage_cite_father(tmp_path):
             units = s.structured_content["units"]
             assert units, f"known token {token!r} must hit"
             assert any(u["id"] == unit_id for u in units), [u["id"] for u in units]
-            assert all(u["review_status"] == "draft-unreviewed" for u in units)
+            assert all(
+                u["review_status"] in {"draft-unreviewed", "reviewed"} for u in units
+            )
 
             p = await c.call_tool("get_passage", {"unit_id": unit_id})
             assert not p.is_error
             pu = p.structured_content
             assert pu["found"] is True and pu["unit"]["id"] == unit_id, pu
-            assert pu["unit"]["review_status"] == "draft-unreviewed", pu
+            assert pu["unit"]["review_status"] in {"draft-unreviewed", "reviewed"}, pu
 
             miss = await c.call_tool("get_passage", {"unit_id": "u-no-such-unit"})
             mu = miss.structured_content

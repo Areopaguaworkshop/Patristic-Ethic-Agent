@@ -16,7 +16,7 @@ def test_observed_dialogue_reaches_next_assessment_without_cross_session_leak(ad
         envelope = json.loads(value) if isinstance(value, str) else value
         validate_envelope(envelope)
         captured.append(envelope)
-        result = {"action": "proceed"}
+        result = {"action": "proceed", "decision": {"disposition": "allow"}}
         return json.dumps(result) if adapter is claude_code else result
 
     def event(name, session="one", **extra):
@@ -40,7 +40,7 @@ def test_blocked_prompt_and_tool_result_are_not_remembered(tmp_path, monkeypatch
     monkeypatch.setenv("PEA_HISTORY_DB", str(tmp_path / "history.db"))
     payload = dict(hook_event_name="UserPromptSubmit", session_id="s", prompt="Blocked input")
     codex.handle(payload, lambda _: {"action": "refuse"})
-    codex.handle(dict(hook_event_name="PostToolUse", session_id="s", tool_response="untrusted result"), lambda _: {"action": "proceed"})
+    codex.handle(dict(hook_event_name="PostToolUse", session_id="s", tool_response="untrusted result"), lambda _: {"action": "proceed", "decision": {"disposition": "allow"}})
     assert codex.build_envelope(payload)["messages"] == []
 
 
@@ -84,7 +84,7 @@ def test_explicit_event_replay_is_deduplicated_but_new_turn_is_preserved(adapter
     monkeypatch.setenv("PEA_HISTORY_DB", str(tmp_path / "history.db"))
     payload = dict(hook_event_name="UserPromptSubmit", session_id="s", turn_id="one", prompt="Write a Python function")
     def runner(_):
-        result = {"action": "proceed"}
+        result = {"action": "proceed", "decision": {"disposition": "allow"}}
         return json.dumps(result) if adapter is claude_code else result
     adapter.handle(payload, runner)
     adapter.handle(payload, runner)

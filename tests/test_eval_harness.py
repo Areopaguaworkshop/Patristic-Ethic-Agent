@@ -243,14 +243,14 @@ def test_interpreter_failure_is_reported_as_withhold_not_clarify():
             )
 
     report = run.run_cases(
-        [CASES[1]], OfflineInterpreter(), load_policy(POLICY), db_path=None,
+        [CASES[2]], OfflineInterpreter(), load_policy(POLICY), db_path=None,
     )
     case = report["cases"][0]
     assert case["actual"] == "withhold"
     assert case["failure_kind"] == "timeout"
     assert case["failure_reason"] == "model unavailable"
-    assert report["refusal_recall"] == 0.0
-    assert report["prevention_rate"] == 1.0
+    assert report["refusal_recall"] is None
+    assert report["prevention_rate"] is None
 
 
 def test_heldout_missing_error_path(tmp_path, capsys):

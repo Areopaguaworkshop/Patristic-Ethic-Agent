@@ -1,0 +1,216 @@
+{
+  "schema_version": 1,
+  "id": "pea-0.0.2-experimental-2026-10-24",
+  "package_version": "0.0.2",
+  "status": "experimental",
+  "release_ready": false,
+  "runtime_baseline": {
+    "assessment_backend": "ollama",
+    "ollama_model": "deepseek-v4.1-flash:cloud",
+    "ollama_host": "http://localhost:11434",
+    "context_length": null,
+    "thinking": "model-default",
+    "assessment_options": {
+      "temperature": 0,
+      "num_predict": 2048
+    },
+    "controlled_timeout_s": 600,
+    "native_python_timeout_s": 15,
+    "native_opencode_timeout_ms": 20000,
+    "revision_enabled": false,
+    "history_messages": 40,
+    "history_characters": 16000,
+    "example_native_host_timeout_s": 30
+  },
+  "comparison_baseline": {
+    "backend": "fake",
+    "repeats": 1,
+    "temperature": 0,
+    "num_predict": 1024,
+    "seed": 0,
+    "timeout_s": 60,
+    "context_length": null,
+    "thinking": "model-default",
+    "generation_model": "deepseek-v4.1-flash:cloud",
+    "assessment_model": "deepseek-v4.1-flash:cloud",
+    "scope": "direct tools-disabled Ollama; not coding-host comparison"
+  },
+  "tuning_evidence": {
+    "context_length": 8192,
+    "thinking": "off",
+    "num_predict": 2048,
+    "timeout_s": 8,
+    "scope": "20-case deepseek-v4.1-flash:cloud latency smoke; 19/20 successes; p95 6.512 s; one timeout"
+  },
+  "hosts": [
+    {
+      "host": "opencode",
+      "mode": "native",
+      "status": "implemented-experimental",
+      "live_acceptance": "pending",
+      "scope": "advisory input guidance; covered pre-tool gate; no before-display guarantee"
+    },
+    {
+      "host": "opencode",
+      "mode": "controlled",
+      "status": "implemented-experimental",
+      "live_acceptance": "partial",
+      "scope": "benign live release; harmful P01/P02 refused by pre-interpreter safety net; one benign multi-turn schema failure; managed config/compaction incomplete"
+    },
+    {
+      "host": "codex",
+      "mode": "native",
+      "status": "implemented-experimental",
+      "live_acceptance": "pending",
+      "scope": "covered prompt/pre-tool protocol and opt-in hook history; live delivery incomplete"
+    },
+    {
+      "host": "codex",
+      "mode": "controlled",
+      "status": "unsupported",
+      "live_acceptance": "pending",
+      "scope": "preventive tools-disabled boundary not established"
+    },
+    {
+      "host": "claude-code",
+      "mode": "native",
+      "status": "implemented-experimental",
+      "live_acceptance": "pending",
+      "scope": "covered prompt/pre-tool protocol and opt-in hook history; live delivery incomplete"
+    },
+    {
+      "host": "claude-code",
+      "mode": "controlled",
+      "status": "implemented-experimental",
+      "live_acceptance": "pending",
+      "scope": "tools-disabled buffered print/JSON; live enforcement/continuation incomplete"
+    }
+  ],
+  "release_gates": {
+    "policy_and_corpus_review": "partial",
+    "operator_os_isolation": "pending",
+    "owner_locked_holdout": "pending",
+    "independent_human_grading": "pending",
+    "live_host_conformance": "pending",
+    "backend_accuracy_and_latency": "pending"
+  },
+  "evidence": [
+    {
+      "path": "README.md",
+      "scope": "run instructions and explicit supported/unsupported modes"
+    },
+    {
+      "path": "docs/plans/2026-10-06-pea-implementation-plan.md",
+      "scope": "canonical requirements and progress; acceptance still partial"
+    },
+    {
+      "path": "docs/plans/2026-10-08-remaining-engineering.md",
+      "scope": "engineering backlog and deferred external dependencies"
+    },
+    {
+      "path": "docs/host-coverage.md",
+      "scope": "host capability limits"
+    },
+    {
+      "path": "docs/hosts/opencode.md",
+      "scope": "OpenCode evidence and limits"
+    },
+    {
+      "path": "docs/hosts/codex.md",
+      "scope": "Codex evidence and unsupported controlled path"
+    },
+    {
+      "path": "docs/hosts/claude-code.md",
+      "scope": "Claude evidence and limits"
+    },
+    {
+      "path": "docs/operator-boundary.md",
+      "scope": "dispatch recovery checks; OS isolation unproven"
+    },
+    {
+      "path": "docs/evaluation/host-conformance.md",
+      "scope": "synthetic shared adapter fixture results"
+    },
+    {
+      "path": "docs/evaluation/ollama-diagnostic.md",
+      "scope": "CPU-only inference diagnostic, timeouts and incomplete smoke"
+    },
+    {
+      "path": "docs/evaluation/human-grading.md",
+      "scope": "validated grade ingestion; no actual human grades"
+    },
+    {
+      "path": "docs/evaluation/response-comparison.md",
+      "scope": "matched direct-local comparison pipeline"
+    },
+    {
+      "path": "docs/evaluation/artifacts/2026-10-08-ollama-smoke.json",
+      "scope": "preserved original partial three-condition smoke"
+    },
+    {
+      "path": "docs/evaluation/artifacts/2026-10-08-ollama-smoke-cases.jsonl",
+      "scope": "original smoke scenario"
+    },
+    {
+      "path": "docs/evaluation/artifacts/2026-10-08-assessment-before-fix.json",
+      "scope": "original evidence-schema failure"
+    },
+    {
+      "path": "docs/evaluation/artifacts/2026-10-08-assessment-after-fix.json",
+      "scope": "schema-aligned assessment timeout"
+    },
+    {
+      "path": "docs/plans/2026-10-08-owner-acceptance.md",
+      "scope": "prepared owner/environment decisions; no approvals supplied"
+    },
+    {
+      "path": "docs/evaluation/ollama-deepseek-latency.md",
+      "scope": "20-case deepseek-v4.1-flash:cloud latency smoke"
+    },
+    {
+      "path": "docs/plans/2026-10-23-publication-plan.md",
+      "scope": "newest paper plan; WP3 latency status"
+    },
+    {
+      "path": "docs/plans/2026-10-23-further-reading-bibliography.md",
+      "scope": "further-reading bibliography plan"
+    },
+    {
+      "path": "docs/research/2026-10-23-further-reading-verification.md",
+      "scope": "bibliography re-verification report"
+    },
+    {
+      "path": "docs/releases/pea-0.0.2-gate-report.md",
+      "scope": "0.0.2 experimental gate report; not release approval"
+    },
+    {
+      "path": "docs/plans/2026-10-24-mcp-npm-distribution.md",
+      "scope": "npm and MCP distribution plan; one unscoped package, nothing published"
+    },
+    {
+      "path": "docs/reviews/2026-10-24-policy-approval.md",
+      "scope": "owner policy approval 2026-10-24; corpus remains partial"
+    },
+    {
+      "path": "docs/releases/publishing.md",
+      "scope": "one PyPI package and one unscoped npm package (pea-mcp); names, credential hygiene, and publish order; nothing published"
+    },
+    {
+      "path": "docs/reviews/2026-10-24-package-publish-review.md",
+      "scope": "pre-publish review: sdist leak fix, secret scan 0 hits, clean-room install"
+    }
+  ],
+  "observed_environment": {
+    "python": "3.13.0",
+    "packages": {
+      "mcp": "2.3.0",
+      "ollama": "0.6.3",
+      "pydantic": "2.13.5",
+      "pytest": "9.1.1"
+    },
+    "ollama_server": "0.31.2",
+    "ollama_model_short_id": "c9fcb824860b",
+    "model_identity_limit": "Full manifest digest read from local Ollama inventory on 2026-10-08; weight export, availability and runtime model matching are not enforced by file verification.",
+    "ollama_model_digest": "c9fcb824860b2acfca9f84b2eb625df0cd1d4d1e57f15f6e9e56d3c3ddb2b110"
+  }
+}

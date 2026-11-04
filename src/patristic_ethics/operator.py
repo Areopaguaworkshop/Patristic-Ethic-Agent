@@ -7,12 +7,13 @@ import json
 import os
 import sys
 
+from . import paths
 from .runtime_store import OperatorBoundaryError, RuntimeStore
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="pea-operator")
-    parser.add_argument("--db", default="corpus/runtime.db")
+    parser.add_argument("--db", default=str(paths.default_runtime_db_path()))
     commands = parser.add_subparsers(dest="command", required=True)
     listing = commands.add_parser("list", help="list review records")
     listing.add_argument("--status", choices=["pending", "approved", "denied", "expired"])

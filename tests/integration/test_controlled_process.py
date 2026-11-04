@@ -45,6 +45,7 @@ sys.exit(3 if mode == "error" else 0)
 HARNESS = '''
 import sys
 from patristic_ethics import controlled, claude_controlled
+from types import SimpleNamespace
 from patristic_ethics.assess import AssessResult
 from patristic_ethics.guidance import GuidanceResult
 module = controlled if sys.argv[1] == "opencode" else claude_controlled
@@ -52,7 +53,7 @@ original = module.ControlledClient
 def assessor(envelope):
     if envelope.stage == "output":
         return AssessResult(action="refuse", guidance=GuidanceResult(text="PEA reviewed refusal"))
-    return AssessResult(action="proceed")
+    return AssessResult(action="proceed", decision=SimpleNamespace(disposition="allow"))
 def client(**kwargs):
     return original(assessor=assessor, **kwargs)
 module.ControlledClient = client

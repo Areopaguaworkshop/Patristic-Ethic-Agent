@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://pea.local/policy/rules.schema.json",
   "title": "PEA Policy Rules",
-  "description": "Machine-readable policy for the Patristic Ethic Agent. DRAFT — unreviewed. Owner editorial review required (decision D9).",
+  "description": "Machine-readable policy for the Patristic Ethic Agent. Policy approved 2026-10-24; patristic anchors remain evidence_gap.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "policy_version", "review_status", "principles"],

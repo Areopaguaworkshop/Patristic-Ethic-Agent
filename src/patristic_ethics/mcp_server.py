@@ -18,21 +18,21 @@ factory), and :func:`main` runs the stdio loop.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any, Callable, Literal
 
 from pydantic import BaseModel, Field
 
-from . import assess, corpus as corpus_mod, policy as policy_mod
+from . import assess, corpus as corpus_mod, paths, policy as policy_mod
 from .context import EnvelopeError, validate_envelope
 
 # Default paths resolve against the repo root (src/patristic_ethics/..) so
 # the server works from any cwd; tests pass explicit paths instead.
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_DB_PATH = _REPO_ROOT / "corpus" / "units.db"
-DEFAULT_POLICY_PATH = _REPO_ROOT / "policy" / "rules.json"
-DEFAULT_RUNTIME_DB_PATH = _REPO_ROOT / "corpus" / "runtime.db"
+DEFAULT_DB_PATH = paths.default_db_path()
+DEFAULT_POLICY_PATH = paths.default_policy_path()
+DEFAULT_RUNTIME_DB_PATH = paths.default_runtime_db_path()
 
 _MISSING_CLAUSE = "insufficient evidence in this collection"
 
@@ -112,9 +112,25 @@ class CitationResult(BaseModel):
 
 
 def _default_interpreter_factory() -> Any:
-    from .interpreter import OllamaInterpreter
+    from .interpreter import FakeInterpreter, OllamaInterpreter, RemoteInterpreter
 
-    return OllamaInterpreter()
+    backend = (os.environ.get("PEA_BACKEND") or "ollama").casefold()
+    if backend == "fake":
+        return FakeInterpreter([])
+    if backend == "remote":
+        return RemoteInterpreter(
+            provider=os.environ.get("PEA_PROVIDER", "openai"),
+            model=os.environ.get("PEA_MODEL") or None,
+            base_url=os.environ.get("PEA_REMOTE_URL") or None,
+            api_key_env=os.environ.get("PEA_API_KEY_ENV") or None,
+            timeout_s=float(os.environ.get("PEA_INTERPRETER_TIMEOUT", "8")),
+            json_mode=os.environ.get("PEA_JSON_MODE", "1") != "0",
+        )
+    return OllamaInterpreter(
+        model=os.environ.get("PEA_MODEL") or "deepseek-v4.1-flash:cloud",
+        host=os.environ.get("PEA_HOST", "http://localhost:11434"),
+        timeout_s=float(os.environ.get("PEA_INTERPRETER_TIMEOUT", "60")),
+    )
 
 
 def _fts_quote(query: str) -> str:
@@ -165,6 +181,9 @@ def create_server(
     from mcp.server import MCPServer
 
     db_path = Path(db_path)
+    runtime_db_path = Path(runtime_db_path) if runtime_db_path is not None else None
+    if runtime_db_path is not None:
+        runtime_db_path.parent.mkdir(parents=True, exist_ok=True)
     policy_doc = policy_mod.load_policy(policy_path)
     interpreter = interpreter_factory()
 
@@ -309,11 +328,12 @@ def create_server(
 
     @server.tool()
     def cite_father(topic: str, limit: int = 3) -> CitationResult:
-        """Find and verify patristic citations for a topic.
+        """Return stored patristic passages for a topic.
 
-        Returns only citations whose quote verifies exactly against the
-        stored text; when nothing verifies, source_status is "missing"
-        and the text says so — never a fabricated citation.
+        The returned quote is the stored text, checked against the index for
+        integrity. This is not verification of a caller-supplied quotation;
+        when nothing is found, source_status is "missing" and the text says
+        so — never a fabricated citation.
         """
         if limit < 1:
             limit = 1

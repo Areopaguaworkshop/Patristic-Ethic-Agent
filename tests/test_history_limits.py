@@ -8,6 +8,8 @@ import sys
 
 import pytest
 
+from types import SimpleNamespace
+
 from patristic_ethics.assess import AssessResult, _validate_observation_evidence
 from patristic_ethics.context import build_envelope
 from patristic_ethics.controlled import ControlledClient, HostOutput
@@ -21,7 +23,7 @@ def test_controlled_window_keeps_unique_sources_reports_loss_and_resets_session(
     calls = []
     def assessor(envelope):
         seen.append(envelope)
-        return AssessResult(action="proceed")
+        return AssessResult(action="proceed", decision=SimpleNamespace(disposition="allow"))
     def runner(prompt, session_id=None):
         calls.append((prompt, session_id))
         return HostOutput(text="answer", session_id="host-session")
@@ -44,7 +46,7 @@ def test_controlled_window_keeps_unique_sources_reports_loss_and_resets_session(
 
 
 def test_overlong_history_not_sliced_into_false_verbatim_evidence():
-    client = ControlledClient(assessor=lambda envelope: AssessResult(action="proceed"),
+    client = ControlledClient(assessor=lambda envelope: AssessResult(action="proceed", decision=SimpleNamespace(disposition="allow")),
                               runner=lambda prompt, session_id=None: HostOutput(text="x" * 16001))
     client.run("original antecedent")
     env = client._envelope(stage="input", prompt="do that", session_id="s", candidate=None)

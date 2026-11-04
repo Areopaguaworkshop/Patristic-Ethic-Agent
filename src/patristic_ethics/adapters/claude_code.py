@@ -200,6 +200,16 @@ def default_runner(envelope_json: str) -> str:
     policy = os.environ.get("PEA_POLICY")
     if policy:
         cmd += ["--policy", policy]
+    for env_name, flag in (
+        ("PEA_PROVIDER", "--provider"),
+        ("PEA_INTERPRETER_MODEL", "--model"),
+        ("PEA_REMOTE_URL", "--remote-url"),
+        ("PEA_API_KEY_ENV", "--api-key-env"),
+        ("PEA_INTERPRETER_TIMEOUT", "--timeout"),
+    ):
+        value = os.environ.get(env_name)
+        if value:
+            cmd += [flag, value]
     proc = subprocess.run(
         cmd,
         input=envelope_json,

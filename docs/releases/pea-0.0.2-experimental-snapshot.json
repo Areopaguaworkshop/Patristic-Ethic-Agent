@@ -1,0 +1,774 @@
+{
+  "schema_version": 1,
+  "status": "experimental",
+  "release_ready": false,
+  "profile_path": "docs/releases/pea-0.0.2-experimental-profile.json",
+  "profile": {
+    "schema_version": 1,
+    "id": "pea-0.0.2-experimental-2026-10-24",
+    "package_version": "0.0.2",
+    "status": "experimental",
+    "release_ready": false,
+    "runtime_baseline": {
+      "assessment_backend": "ollama",
+      "ollama_model": "deepseek-v4.1-flash:cloud",
+      "ollama_host": "http://localhost:11434",
+      "context_length": null,
+      "thinking": "model-default",
+      "assessment_options": {
+        "temperature": 0,
+        "num_predict": 2048
+      },
+      "controlled_timeout_s": 600,
+      "native_python_timeout_s": 15,
+      "native_opencode_timeout_ms": 20000,
+      "revision_enabled": false,
+      "history_messages": 40,
+      "history_characters": 16000,
+      "example_native_host_timeout_s": 30
+    },
+    "comparison_baseline": {
+      "backend": "fake",
+      "repeats": 1,
+      "temperature": 0,
+      "num_predict": 1024,
+      "seed": 0,
+      "timeout_s": 60,
+      "context_length": null,
+      "thinking": "model-default",
+      "generation_model": "deepseek-v4.1-flash:cloud",
+      "assessment_model": "deepseek-v4.1-flash:cloud",
+      "scope": "direct tools-disabled Ollama; not coding-host comparison"
+    },
+    "tuning_evidence": {
+      "context_length": 8192,
+      "thinking": "off",
+      "num_predict": 2048,
+      "timeout_s": 8,
+      "scope": "20-case deepseek-v4.1-flash:cloud latency smoke; 19/20 successes; p95 6.512 s; one timeout"
+    },
+    "hosts": [
+      {
+        "host": "opencode",
+        "mode": "native",
+        "status": "implemented-experimental",
+        "live_acceptance": "pending",
+        "scope": "advisory input guidance; covered pre-tool gate; no before-display guarantee"
+      },
+      {
+        "host": "opencode",
+        "mode": "controlled",
+        "status": "implemented-experimental",
+        "live_acceptance": "partial",
+        "scope": "benign live release; harmful P01/P02 refused by pre-interpreter safety net; one benign multi-turn schema failure; managed config/compaction incomplete"
+      },
+      {
+        "host": "codex",
+        "mode": "native",
+        "status": "implemented-experimental",
+        "live_acceptance": "pending",
+        "scope": "covered prompt/pre-tool protocol and opt-in hook history; live delivery incomplete"
+      },
+      {
+        "host": "codex",
+        "mode": "controlled",
+        "status": "unsupported",
+        "live_acceptance": "pending",
+        "scope": "preventive tools-disabled boundary not established"
+      },
+      {
+        "host": "claude-code",
+        "mode": "native",
+        "status": "implemented-experimental",
+        "live_acceptance": "pending",
+        "scope": "covered prompt/pre-tool protocol and opt-in hook history; live delivery incomplete"
+      },
+      {
+        "host": "claude-code",
+        "mode": "controlled",
+        "status": "implemented-experimental",
+        "live_acceptance": "pending",
+        "scope": "tools-disabled buffered print/JSON; live enforcement/continuation incomplete"
+      }
+    ],
+    "release_gates": {
+      "policy_and_corpus_review": "partial",
+      "operator_os_isolation": "pending",
+      "owner_locked_holdout": "pending",
+      "independent_human_grading": "pending",
+      "live_host_conformance": "pending",
+      "backend_accuracy_and_latency": "pending"
+    },
+    "evidence": [
+      {
+        "path": "README.md",
+        "scope": "run instructions and explicit supported/unsupported modes"
+      },
+      {
+        "path": "docs/plans/2026-10-06-pea-implementation-plan.md",
+        "scope": "canonical requirements and progress; acceptance still partial"
+      },
+      {
+        "path": "docs/plans/2026-10-08-remaining-engineering.md",
+        "scope": "engineering backlog and deferred external dependencies"
+      },
+      {
+        "path": "docs/host-coverage.md",
+        "scope": "host capability limits"
+      },
+      {
+        "path": "docs/hosts/opencode.md",
+        "scope": "OpenCode evidence and limits"
+      },
+      {
+        "path": "docs/hosts/codex.md",
+        "scope": "Codex evidence and unsupported controlled path"
+      },
+      {
+        "path": "docs/hosts/claude-code.md",
+        "scope": "Claude evidence and limits"
+      },
+      {
+        "path": "docs/operator-boundary.md",
+        "scope": "dispatch recovery checks; OS isolation unproven"
+      },
+      {
+        "path": "docs/evaluation/host-conformance.md",
+        "scope": "synthetic shared adapter fixture results"
+      },
+      {
+        "path": "docs/evaluation/ollama-diagnostic.md",
+        "scope": "CPU-only inference diagnostic, timeouts and incomplete smoke"
+      },
+      {
+        "path": "docs/evaluation/human-grading.md",
+        "scope": "validated grade ingestion; no actual human grades"
+      },
+      {
+        "path": "docs/evaluation/response-comparison.md",
+        "scope": "matched direct-local comparison pipeline"
+      },
+      {
+        "path": "docs/evaluation/artifacts/2026-10-08-ollama-smoke.json",
+        "scope": "preserved original partial three-condition smoke"
+      },
+      {
+        "path": "docs/evaluation/artifacts/2026-10-08-ollama-smoke-cases.jsonl",
+        "scope": "original smoke scenario"
+      },
+      {
+        "path": "docs/evaluation/artifacts/2026-10-08-assessment-before-fix.json",
+        "scope": "original evidence-schema failure"
+      },
+      {
+        "path": "docs/evaluation/artifacts/2026-10-08-assessment-after-fix.json",
+        "scope": "schema-aligned assessment timeout"
+      },
+      {
+        "path": "docs/plans/2026-10-08-owner-acceptance.md",
+        "scope": "prepared owner/environment decisions; no approvals supplied"
+      },
+      {
+        "path": "docs/evaluation/ollama-deepseek-latency.md",
+        "scope": "20-case deepseek-v4.1-flash:cloud latency smoke"
+      },
+      {
+        "path": "docs/plans/2026-10-23-publication-plan.md",
+        "scope": "newest paper plan; WP3 latency status"
+      },
+      {
+        "path": "docs/plans/2026-10-23-further-reading-bibliography.md",
+        "scope": "further-reading bibliography plan"
+      },
+      {
+        "path": "docs/research/2026-10-23-further-reading-verification.md",
+        "scope": "bibliography re-verification report"
+      },
+      {
+        "path": "docs/releases/pea-0.0.2-gate-report.md",
+        "scope": "0.0.2 experimental gate report; not release approval"
+      },
+      {
+        "path": "docs/plans/2026-10-24-mcp-npm-distribution.md",
+        "scope": "npm and MCP distribution plan; one unscoped package, nothing published"
+      },
+      {
+        "path": "docs/reviews/2026-10-24-policy-approval.md",
+        "scope": "owner policy approval 2026-10-24; corpus remains partial"
+      },
+      {
+        "path": "docs/releases/publishing.md",
+        "scope": "one PyPI package and one unscoped npm package (pea-mcp); names, credential hygiene, and publish order; nothing published"
+      },
+      {
+        "path": "docs/reviews/2026-10-24-package-publish-review.md",
+        "scope": "pre-publish review: sdist leak fix, secret scan 0 hits, clean-room install"
+      }
+    ],
+    "observed_environment": {
+      "python": "3.13.0",
+      "packages": {
+        "mcp": "2.3.0",
+        "ollama": "0.6.3",
+        "pydantic": "2.13.5",
+        "pytest": "9.1.1"
+      },
+      "ollama_server": "0.31.2",
+      "ollama_model_short_id": "c9fcb824860b",
+      "model_identity_limit": "Full manifest digest read from local Ollama inventory on 2026-10-08; weight export, availability and runtime model matching are not enforced by file verification.",
+      "ollama_model_digest": "c9fcb824860b2acfca9f84b2eb625df0cd1d4d1e57f15f6e9e56d3c3ddb2b110"
+    }
+  },
+  "inputs_sha256": "7bcebe61228ec348714e59d3e128ff3c156bcd258f2cf9bc545748d3a6236113",
+  "files": {
+    "README.md": {
+      "sha256": "da2f1258714b0a444aa2443d69a5f904594bb3e3fb4223c05096247186bde31d",
+      "bytes": 12990
+    },
+    "adapters/opencode/index.ts": {
+      "sha256": "d1916cbd2376a774d361bdcd38d449c6c3640633a50b9841796fef78854bb1da",
+      "bytes": 15228
+    },
+    "adapters/opencode/package.json": {
+      "sha256": "5fbe4ea97c0939e0f1e13f7ffd6634667d3e248216f2ba7558baba82ab26252e",
+      "bytes": 309
+    },
+    "corpus/seed.jsonl": {
+      "sha256": "862d41e6fb40abf52a23e6b35a4e5d85992bab3dc6c0cfdbe72e9f167e73b0a8",
+      "bytes": 51466
+    },
+    "corpus/units.db": {
+      "sha256": "a2111363cb35281351e79c76e4c28328d1151cc90fff588d0ecfe0d2b651d422",
+      "bytes": 94208
+    },
+    "docs/evaluation/artifacts/2026-10-08-assessment-after-fix.json": {
+      "sha256": "aca331ac9decf3a9ffaf9d18dbc1c51b224bd9011cbaf3806a147fae6c944a4f",
+      "bytes": 177
+    },
+    "docs/evaluation/artifacts/2026-10-08-assessment-before-fix.json": {
+      "sha256": "93750ecebddc32d324ab55cea811ced9564c2f66c98fd7d3ef0f463303444758",
+      "bytes": 271
+    },
+    "docs/evaluation/artifacts/2026-10-08-ollama-smoke-cases.jsonl": {
+      "sha256": "cfc5948b448d0d0b41a08b28c251f35dac95ff7889b95b3b9395434662f6ae09",
+      "bytes": 180
+    },
+    "docs/evaluation/artifacts/2026-10-08-ollama-smoke.json": {
+      "sha256": "2185152eb75d8ac756f3b523cae896e9881007e8c482ad674a31df62983b150f",
+      "bytes": 3900
+    },
+    "docs/evaluation/host-conformance.md": {
+      "sha256": "b83ace359dc78a184db71103d103dc35ab1db80266e3bb96095425d8410e32b1",
+      "bytes": 3239
+    },
+    "docs/evaluation/human-grading.md": {
+      "sha256": "574aee3c05ca23ae311b5e140f1eafb3b7d8ea1501281b2cdbc1920e9bc0f8bf",
+      "bytes": 4532
+    },
+    "docs/evaluation/ollama-deepseek-latency.md": {
+      "sha256": "5233bce30f78fbca7e44b7145e6056c2ac8872bcac2757ccc7dfb73e6fdb5120",
+      "bytes": 1093
+    },
+    "docs/evaluation/ollama-diagnostic.md": {
+      "sha256": "a7cc035af5d9fdee3e4d09c10a353270965de028b1f8ad8c3d309705f49e10b7",
+      "bytes": 6361
+    },
+    "docs/evaluation/response-comparison.md": {
+      "sha256": "ec6bf55bb335614c76e916b22c13dc2c38ebdc14ae59f9566ea1534197d228a5",
+      "bytes": 5426
+    },
+    "docs/host-coverage.md": {
+      "sha256": "5a8a9b03d5a7c956c7e19711e7fc24f8fb6a183ed4cdd18f272b3b569270db94",
+      "bytes": 9389
+    },
+    "docs/hosts/claude-code.md": {
+      "sha256": "7ee0b2d44607a227e6ca3a53f7f03aee1e16dd5ff0f7ab00db9ec6c3efcbd01b",
+      "bytes": 17704
+    },
+    "docs/hosts/codex.md": {
+      "sha256": "ba307eb29abcc290e0adec0d5d5927809e765902ae7cca60f881f1e7d2dd903a",
+      "bytes": 10909
+    },
+    "docs/hosts/opencode.md": {
+      "sha256": "9a6ebdff1905cab3ead04980c718f57af56f323450c13864f7237b7c84de6b70",
+      "bytes": 19965
+    },
+    "docs/operator-boundary.md": {
+      "sha256": "509348407484fcbb8c1922dc0849ca5168b2fb7e10231c9b8026998d301f0c32",
+      "bytes": 8207
+    },
+    "docs/plans/2026-10-06-pea-implementation-plan.md": {
+      "sha256": "85214c68d327de052cfe75551594d42321910381b89486849e411085e54596be",
+      "bytes": 79729
+    },
+    "docs/plans/2026-10-08-owner-acceptance.md": {
+      "sha256": "ce99bea1c895714d3d186a0231d4b102a0a08089eccbac8a80ec32d95bc430d8",
+      "bytes": 3853
+    },
+    "docs/plans/2026-10-08-remaining-engineering.md": {
+      "sha256": "cab677c9d5fff5b272e622f4ef35c71a77a343e908249d008408ec4cd66eb03e",
+      "bytes": 6381
+    },
+    "docs/plans/2026-10-23-further-reading-bibliography.md": {
+      "sha256": "7bd26204cc58135352841cc2a364943c7c43f3ddd5be1c563810752f0160a433",
+      "bytes": 7664
+    },
+    "docs/plans/2026-10-23-publication-plan.md": {
+      "sha256": "e130fcd764d9d03fbc0a3b798446890a1366eb1187093012800ed580de73594e",
+      "bytes": 18548
+    },
+    "docs/plans/2026-10-24-mcp-npm-distribution.md": {
+      "sha256": "6ee1fd4c844d69ee18018ed325ac00367040ef8f9e806930f202191ce73f0c5d",
+      "bytes": 6510
+    },
+    "docs/releases/pea-0.0.2-experimental-profile.json": {
+      "sha256": "7aaba0049e56541273029d00d09c7f24950971081405cbfc3932b430ce72f6a1",
+      "bytes": 7219
+    },
+    "docs/releases/pea-0.0.2-gate-report.md": {
+      "sha256": "a72462584aaf57175ea2ca47307b814c22592569ab0a7467f8911fce9968c41a",
+      "bytes": 2463
+    },
+    "docs/releases/publishing.md": {
+      "sha256": "ae5aeb0a892a185585700d3e3144c92a31585e31916507dbd2f0cea553ce7688",
+      "bytes": 3935
+    },
+    "docs/research/2026-10-23-further-reading-verification.md": {
+      "sha256": "b312691e3ed6f6488a4a8b34d7ab374ef3ac8112b88acde321c7d921d7e46304",
+      "bytes": 4034
+    },
+    "docs/reviews/2026-10-24-package-publish-review.md": {
+      "sha256": "8af6271447966f414351877fde5605e7efdf7fc4cd7e2810b4ce535638b8d642",
+      "bytes": 5320
+    },
+    "docs/reviews/2026-10-24-policy-approval.md": {
+      "sha256": "5232d9eac78c44e74a4ec6ef30bbe7bda46b0712d9aebe2071d453c0eb1780a6",
+      "bytes": 865
+    },
+    "eval/compare.py": {
+      "sha256": "3e099e28815bac7ca7475f9fa2af1128c99aa5a76445b34e524841e8856f4666",
+      "bytes": 12171
+    },
+    "eval/freeze.py": {
+      "sha256": "6e65ad0b3c8d66c65424ca4a23ac9f761e46b578d7154eb7dfdefaa6de39b851",
+      "bytes": 5855
+    },
+    "eval/grade.py": {
+      "sha256": "8ed85216d6ae9814a7dd1b6dfe0f2558f0fc23fac8c47f16841019499000acc7",
+      "bytes": 10701
+    },
+    "eval/rubric.md": {
+      "sha256": "20a94b1ab357bf515b2af51044e14afd76df3258c0a288ffedc9738ad4d19bd6",
+      "bytes": 5045
+    },
+    "eval/run.py": {
+      "sha256": "4b359997a812e0b5b31aac23706aa945711db8c072146a1bbb648f79fe9a0746",
+      "bytes": 25631
+    },
+    "eval/scenarios.jsonl": {
+      "sha256": "d3d5d19c3c82b5d7ddc7e7b3345ac04d81f0c1ec84abc195c14bc2e259b32d89",
+      "bytes": 14795
+    },
+    "examples/claude-code/settings.json": {
+      "sha256": "d5cadd7f3a172b3f58bed51282aa8196e01aae0c7bca9943bc3ad8d8b406adf7",
+      "bytes": 520
+    },
+    "examples/codex/hooks.json": {
+      "sha256": "d7daa8b2d3fd144ceaeb378effcb2a1708d27261459c9df798c411eb44afd4e1",
+      "bytes": 573
+    },
+    "examples/opencode/README.md": {
+      "sha256": "57a306c8ed371dd8586f16982463072105d0c61808a2c9f20adeb8c8dde47caa",
+      "bytes": 3693
+    },
+    "examples/opencode/controlled/opencode.json": {
+      "sha256": "f5e4cdf50d77c35fd0c17130cb868f11e072d0e842d86fa0b16059d2d51b113a",
+      "bytes": 83
+    },
+    "examples/opencode/opencode.json": {
+      "sha256": "e2f1324ac594e371b832342614aa200ee784fdbf7b240b6851e2e6ce894ad786",
+      "bytes": 566
+    },
+    "policy/constitution.md": {
+      "sha256": "5b809a99e9fb04b7e31606ceced24bca1d9885740d53427a4187b46134654b07",
+      "bytes": 26130
+    },
+    "policy/rules.json": {
+      "sha256": "c7fa972a4305a47798cd1a3e5e9c8ef7f7bcecf257080151646ed5352b9997be",
+      "bytes": 17656
+    },
+    "policy/rules.schema.json": {
+      "sha256": "d7787498444692d5ffa55e1cf87b53c85ebc39b74a587ac6c249fa504704611f",
+      "bytes": 3315
+    },
+    "pyproject.toml": {
+      "sha256": "575b1f3a621f9ee2b8e5010cd89253cde678114f1967fe4aec53301a52857d2a",
+      "bytes": 1229
+    },
+    "scripts/benchmark_remote_latency.py": {
+      "sha256": "7f92b3eb1ec52f7887f77f01b986067759890159294510e4e0d4496bdb3ea398",
+      "bytes": 6493
+    },
+    "scripts/pea_controlled.sh": {
+      "sha256": "80ed5979d49bb9e578e0a6c8c48a8e605ff7b39549bd284dd7ca10ea4f4e6572",
+      "bytes": 655
+    },
+    "scripts/probe_opencode.sh": {
+      "sha256": "4c346710a909609301c1e494f88243f2811baf6a7a68fd150c8682a19f077fde",
+      "bytes": 4185
+    },
+    "scripts/probe_pea_plugin.sh": {
+      "sha256": "6e8eb33e0cc99c738c83e5f69ee5e0c767f05fa252702c7425a7b4e4f998b9df",
+      "bytes": 12413
+    },
+    "scripts/setup_operator_isolation.sh": {
+      "sha256": "6970bdd616b21d92110907552c2fa9cdd9b32cbad096523771d35db0166a720b",
+      "bytes": 2300
+    },
+    "scripts/verify_further_reading.py": {
+      "sha256": "b6f8aed9c32903aae6d7987fb5e93939f24eff0bb218a9352c7ce813b4bac7e2",
+      "bytes": 9143
+    },
+    "src/patristic_ethics/__init__.py": {
+      "sha256": "36f83589ae084cf3cc805efb48413b51cb41a2cca80ce9332feba0e7ad701cb8",
+      "bytes": 310
+    },
+    "src/patristic_ethics/adapters/__init__.py": {
+      "sha256": "71f37c09fdf6373a2c6afd11a4d20421862fd722ce465743c2f49f763a639f56",
+      "bytes": 6
+    },
+    "src/patristic_ethics/adapters/claude_code.py": {
+      "sha256": "4fea69207ffac049aa188196a7e67e38aaf3121587393168f356736fcc2aa5c6",
+      "bytes": 10338
+    },
+    "src/patristic_ethics/adapters/codex.py": {
+      "sha256": "fce5d4de8d1065a41b1718efae3f3737c879cb53a1b00a27528b96ade25637e6",
+      "bytes": 10657
+    },
+    "src/patristic_ethics/adapters/history.py": {
+      "sha256": "28a3987efca7b3ffde53e005bb423ce366718d57a73d98354c87d6af483442fd",
+      "bytes": 4407
+    },
+    "src/patristic_ethics/adapters/result.py": {
+      "sha256": "0f0e087ce32e23be6122ab6be0918ed50792d29020266601a137da120aeee63c",
+      "bytes": 764
+    },
+    "src/patristic_ethics/assess.py": {
+      "sha256": "b84bae6093a5dfad5c9e698aaa2bdc70634f3aa2c98e605a2eb42aa785aed239",
+      "bytes": 11876
+    },
+    "src/patristic_ethics/citations.py": {
+      "sha256": "c886c4a946b01e9e54b9cfa27c93974b8f45658e947620e3e1aa0dcb40f0dae9",
+      "bytes": 6548
+    },
+    "src/patristic_ethics/claude_controlled.py": {
+      "sha256": "cdfc1ba5b9be994c287937fc775c1643ee139e05ef0a87148299846526727b78",
+      "bytes": 6215
+    },
+    "src/patristic_ethics/cli.py": {
+      "sha256": "9ab17c6789d7375a5523fb1a160dfef3816b268ff432f19b475941a1fdd753fc",
+      "bytes": 14515
+    },
+    "src/patristic_ethics/context.py": {
+      "sha256": "7d8bd990161fc9a3471fe121f3bd148a8b38bf15829653e49e583b8cd01dc7b6",
+      "bytes": 5113
+    },
+    "src/patristic_ethics/controlled.py": {
+      "sha256": "44b3cbf7e5ec104edb8a5655d28a327149d5d7e2ace0885f1e62d301d7ca4fea",
+      "bytes": 30529
+    },
+    "src/patristic_ethics/corpus.py": {
+      "sha256": "892466224eaa22e89fc62e884e7aabac110d5c1b20c0e4d9d7f47a86305bbfd0",
+      "bytes": 12857
+    },
+    "src/patristic_ethics/csl.py": {
+      "sha256": "4c1aecb6f751e99b06ca0842c906cb191e1f27a4f1fda7360f9e1e5907a3340a",
+      "bytes": 14197
+    },
+    "src/patristic_ethics/data/README.md": {
+      "sha256": "9de56ea3ed8d36bdfcecd44008629a002d025409b5d97cf5857948d5c755f1a1",
+      "bytes": 364
+    },
+    "src/patristic_ethics/data/policy/rules.json": {
+      "sha256": "c7fa972a4305a47798cd1a3e5e9c8ef7f7bcecf257080151646ed5352b9997be",
+      "bytes": 17656
+    },
+    "src/patristic_ethics/further_reading.py": {
+      "sha256": "b60d7306010b1961bfbaf0021d65d40eabd0a818893616c022344c5f181ae78e",
+      "bytes": 8311
+    },
+    "src/patristic_ethics/guidance.py": {
+      "sha256": "7ebb8201c1f4a19c85b5ea408cd9119a7ffbf39e60f379f270d1c3e9af6cdb65",
+      "bytes": 10335
+    },
+    "src/patristic_ethics/interpreter.py": {
+      "sha256": "418ddc06b394ea7030389ba784f6d47efe3ba9779599856b94f9a6e141df5e98",
+      "bytes": 21217
+    },
+    "src/patristic_ethics/mcp_server.py": {
+      "sha256": "cb185060f83f1713c0397a9bd3a131398078c26bc9ff534b51451d08f7c5a998",
+      "bytes": 13736
+    },
+    "src/patristic_ethics/operator.py": {
+      "sha256": "3ae7b90266388ba8a3a0496200d8d9d672a3efbf80827bf39c61c910ee60084e",
+      "bytes": 2060
+    },
+    "src/patristic_ethics/paths.py": {
+      "sha256": "6130ea521eaa8ae99877bfb5e0e12791761c67047a88adecbc5be000e20a3f6b",
+      "bytes": 882
+    },
+    "src/patristic_ethics/policy.py": {
+      "sha256": "d1ed36e35d7aebf1ba14236c7cea5ad4ebdb2a61f111fcb6be2e543e5754fb35",
+      "bytes": 13367
+    },
+    "src/patristic_ethics/provenance.py": {
+      "sha256": "1c349068265f864266848ed72e5dc98daaefb9487b84fef36bbd2f86913d0fc7",
+      "bytes": 3618
+    },
+    "src/patristic_ethics/proxy.py": {
+      "sha256": "30b84c2b5951e4ad82c75cfca9ab69ae02e26fb257768336d085b211c3d53576",
+      "bytes": 16890
+    },
+    "src/patristic_ethics/runtime_store.py": {
+      "sha256": "3c1038fab9e9f1bd956eb9d170afd08f01aaf61502384a6062f6027efc436525",
+      "bytes": 19235
+    },
+    "src/patristic_ethics/tei_import.py": {
+      "sha256": "73049e82e7747528f40292d53cee854956b70d71446cd25615f55b19f12d3f1d",
+      "bytes": 11302
+    },
+    "tests/conftest.py": {
+      "sha256": "806829953493536742e195df42cefee22ab351c21b8ca94bafd55affd55d846c",
+      "bytes": 494
+    },
+    "tests/fixtures/assess/benign.json": {
+      "sha256": "bf5f425f55a0cd43ff4d58b2ff491aca8fee1a8f371db329ceb7236e545ba5a5",
+      "bytes": 701
+    },
+    "tests/fixtures/assess/distress.json": {
+      "sha256": "dbf5e8f172ba5c89914e51d0d51cce20527e459163bada6c7cac11b52f8b7a00",
+      "bytes": 803
+    },
+    "tests/fixtures/assess/multiturn.json": {
+      "sha256": "9c25253cddd2a6d528e36a2672d2d03d61190891ae57dc53249aa3edb083c84b",
+      "bytes": 1300
+    },
+    "tests/fixtures/assess/refuse.json": {
+      "sha256": "a395d1448f25d0e77469797c8415ec4792442dc8e61b28eba7fcda326b2a0dc3",
+      "bytes": 777
+    },
+    "tests/fixtures/host_conformance/README.md": {
+      "sha256": "d87b6c4dfad7ba6caa1869f8d0646357c307d84e865338f8cdd20ca9c43fed44",
+      "bytes": 790
+    },
+    "tests/fixtures/host_conformance/scenarios.jsonl": {
+      "sha256": "7317fb4feee00d7232152e823676518e36e997c3262cc6489493c98c812d06d0",
+      "bytes": 4412
+    },
+    "tests/fixtures/opencode_probe/evidence/RESULT.md": {
+      "sha256": "cf38c3b7802fdabc1c2e123b4c80c03abea5608322300a3dd555b14d2db48817",
+      "bytes": 6131
+    },
+    "tests/fixtures/opencode_probe/opencode.json": {
+      "sha256": "86f7881d14cc28c159a049226ba2875382c11abcc665eb54eb9cfd0402ba6933",
+      "bytes": 518
+    },
+    "tests/fixtures/opencode_probe/plugins/pea-probe.ts": {
+      "sha256": "1611b4953bddd1e07478698d6636c12fc8037a4acb297802fb9c76946a350636",
+      "bytes": 3338
+    },
+    "tests/fixtures/tei/README.md": {
+      "sha256": "f7d0ae8bbcf627cc80c19c111bcd44ca8d656cf6470037c550da0d13f35f1c0a",
+      "bytes": 5841
+    },
+    "tests/fixtures/tei/greg_carmina.xml": {
+      "sha256": "54ef8223f6c559d1cdb9ab29435f26f47a95840a485a38ebfea59c1ecb17cf76",
+      "bytes": 6890
+    },
+    "tests/fixtures/tei/pta0022_grc1.xml": {
+      "sha256": "fb1b4073a6727ffe8aa1f0ab462acf56dba7ce0b23b337ed3e2b7c14646ea2f5",
+      "bytes": 1348735
+    },
+    "tests/fixtures/tei/syr_2.xml": {
+      "sha256": "9049e08485b1747918e0eefabc1c96e7ca8f817d0beb0e05f6f53c2a56dd06df",
+      "bytes": 47869
+    },
+    "tests/fixtures/tei/syr_20.xml": {
+      "sha256": "4a7957980498c3619a87a6f7e3e15b4cd3c3d7013cd98a74a4feef56c44a5ede",
+      "bytes": 38320
+    },
+    "tests/fixtures/tei/syr_3.xml": {
+      "sha256": "25a454cdaf7e98d16715dede044704757e7363e909580e41f99f9610401cf8e3",
+      "bytes": 38713
+    },
+    "tests/fixtures/tei/syr_300.xml": {
+      "sha256": "f0c16726851e87b5427eacadcd5989a84ecba8665043f048f563b492c94c66a2",
+      "bytes": 21974
+    },
+    "tests/fixtures/tei/syr_9.xml": {
+      "sha256": "7f616d532736e5f7e1a877a453661e7e402d66e2ef1ba95da8854fa7a6f0729e",
+      "bytes": 36442
+    },
+    "tests/integration/__init__.py": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "tests/integration/test_claude_hooks.py": {
+      "sha256": "129506376a99e5bc233b2dc885cd519b2dfeb2d850cf33f7b5213212a34b516f",
+      "bytes": 13161
+    },
+    "tests/integration/test_codex_hooks.py": {
+      "sha256": "2004135e1d5e0604062c333887b1332d5eb7fbd9d6864a642fe79ccb5099a526",
+      "bytes": 12692
+    },
+    "tests/integration/test_controlled_process.py": {
+      "sha256": "3012a5c0445ba58c4abd2983aac6143ba036db0412d0c6ac6eba01f33a137ce6",
+      "bytes": 4938
+    },
+    "tests/integration/test_dispatch_recovery.py": {
+      "sha256": "92f85e8de25264b94e604cb82909337049b0a332cf09c677dd708146a2ad4362",
+      "bytes": 6280
+    },
+    "tests/integration/test_host_contracts.py": {
+      "sha256": "0f0d16b53f69c299da41bfdc5daef7b9677e6939341a30ca62c3feed5d20e914",
+      "bytes": 4173
+    },
+    "tests/integration/test_mcp.py": {
+      "sha256": "94b1c63f014e802c5ed35403c54e2beae6cdf86bd66722dc926efd5204e0424a",
+      "bytes": 8799
+    },
+    "tests/integration/test_native_history.py": {
+      "sha256": "cdb96108c12656a2e92fbda2fa0d99789d13a06c7301f4bd50a28552189ea751",
+      "bytes": 8811
+    },
+    "tests/integration/test_opencode_adapter.py": {
+      "sha256": "ec5ebcae511c38fa7654ec6f4c2cc5c621d091713cd745fa7e96da8277c80b48",
+      "bytes": 8087
+    },
+    "tests/integration/test_proxy.py": {
+      "sha256": "f9c4bb78e01d0c0befeafef911bbdadbfebe648deaa60b57df3965e3f25e092f",
+      "bytes": 17838
+    },
+    "tests/integration/test_shared_host_conformance.py": {
+      "sha256": "b88d71a82a217367b73d7d5f68aca0b81b4988f73913c2e81d745055a25ddc17",
+      "bytes": 6508
+    },
+    "tests/test_assess.py": {
+      "sha256": "7258a512564b592c15eeef1e372dacd284ac98cab3c5beee6d46ea487bb024a1",
+      "bytes": 13735
+    },
+    "tests/test_citations.py": {
+      "sha256": "9e5cdcad21a4c6b2531236ea90d27f6959bfca37a213fbb3926a828dc6811605",
+      "bytes": 2078
+    },
+    "tests/test_claude_controlled.py": {
+      "sha256": "58117f0f708da37fa5ff1ba8a8b49325a0f189f34c943961118b661edef6f01d",
+      "bytes": 4403
+    },
+    "tests/test_cli.py": {
+      "sha256": "a1c9917c1c93d5fd4fcbfff9fff5f61dcc8ec91ed71d253715f9f1949701b5d0",
+      "bytes": 6885
+    },
+    "tests/test_context.py": {
+      "sha256": "012ad4e76131619ec78fa731d36b52251edac50d09f9a19d27464355e3ec50b1",
+      "bytes": 4559
+    },
+    "tests/test_controlled.py": {
+      "sha256": "9a753642165a4f3e24393caa1fc9f1cd47ac6200d72bdbfcf36e6d83817ed272",
+      "bytes": 20027
+    },
+    "tests/test_controlled_revision.py": {
+      "sha256": "b0ced911ea75a9a025ca3b18b456110b70d5e29cec4fcf601ad65e2cee0b95cd",
+      "bytes": 6694
+    },
+    "tests/test_corpus.py": {
+      "sha256": "a214644f6e52d78f8f8db08648c39dc5a2bd80d89f433638ed83cca60a7a6be3",
+      "bytes": 8065
+    },
+    "tests/test_csl.py": {
+      "sha256": "c842b21bee96e4a5852e90d539eee21e570444aeaca50eefd678cbdf94d33977",
+      "bytes": 2817
+    },
+    "tests/test_eval_comparison.py": {
+      "sha256": "a52260e69a818b6d1403de33b277b481797ebe220e6cb14b0e9e8a7e27927d61",
+      "bytes": 6898
+    },
+    "tests/test_eval_freeze.py": {
+      "sha256": "3c023342f30c3832f2b6b954e45ffbcd383077182a96170c8d6cd91dbb5f68ef",
+      "bytes": 4227
+    },
+    "tests/test_eval_grading.py": {
+      "sha256": "907b732bbc6b57882d86ad72b231b1dcc80a6004be2fcd836b147fa8364a617c",
+      "bytes": 5865
+    },
+    "tests/test_eval_harness.py": {
+      "sha256": "270079f8aa89146cd7fd57eefb1203e7513a5c4475432f72cf7dab1b6359ca38",
+      "bytes": 13923
+    },
+    "tests/test_further_reading.py": {
+      "sha256": "493ba7d6b38104085099219c9f5459df3e7c62a72e2df2aa153a509e0257f319",
+      "bytes": 1906
+    },
+    "tests/test_guidance.py": {
+      "sha256": "7d69ed5af45a11fd3ffb2c4dff61d9691463377ae96e17b2542cf40719bd98ea",
+      "bytes": 7297
+    },
+    "tests/test_history_limits.py": {
+      "sha256": "98ed7377c74136cdf9f370323b0364025c3558c377d5217803107f6e35466b91",
+      "bytes": 6889
+    },
+    "tests/test_interpreter.py": {
+      "sha256": "4093c583c80974d074957ff460e516f3c46523617393902909acdaa5c1c6c238",
+      "bytes": 9416
+    },
+    "tests/test_lexical_fallback.py": {
+      "sha256": "5e5d2598e4e8e5feee14f3a5e351327e0dd747d1b918f08a8f107fd79ed8536e",
+      "bytes": 6625
+    },
+    "tests/test_operator_boundary.py": {
+      "sha256": "00d2c6f9493fc4b6bac14b8d89e87cf832190c33498672ee9f68f7c067de8772",
+      "bytes": 12977
+    },
+    "tests/test_operator_cli.py": {
+      "sha256": "46a198d497d4559cbc00d752c6f576cb73b2a880920056b4e4520d6a9b0624c5",
+      "bytes": 1424
+    },
+    "tests/test_policy.py": {
+      "sha256": "1fa43527156a5b9c744c809f4fa2de4a3b17d72af0bba17198a4d08c2a2a5999",
+      "bytes": 8868
+    },
+    "tests/test_provenance.py": {
+      "sha256": "df502224f26851d76d01ec37d20aa041eb1ea3dff196abf3669d306a225e6b82",
+      "bytes": 1342
+    },
+    "tests/test_remote_config.py": {
+      "sha256": "28701474019b664a2655ba3a0d3627d67cd44c9f675231bb3e3d6e01cc7aef61",
+      "bytes": 3563
+    },
+    "tests/test_remote_interpreter.py": {
+      "sha256": "37dd3d72818e6f798a34946fe9c8e634077c01915550176d9ca15d221a42bdc5",
+      "bytes": 5754
+    },
+    "tests/test_review.py": {
+      "sha256": "f1e746eccf365c812507859cf215fc97f3510edd1acb01a2b2a2f2a60945196a",
+      "bytes": 13422
+    },
+    "tests/test_runtime_controls.py": {
+      "sha256": "80922fc36e78c76817ac7b027a5a1a7fc170d761c9a04a5510d6c4cdcd415a6e",
+      "bytes": 2759
+    },
+    "tests/test_sdk_pin.py": {
+      "sha256": "e53010efccabccd48aa839ea8da7f061ee1d607909ca72bb59aea318d4c2cce2",
+      "bytes": 2257
+    },
+    "tests/test_tei_import.py": {
+      "sha256": "fe9544d44c01c98410978659d94e9efe94e338a7c7816fbb03cdbb3be00da197",
+      "bytes": 6174
+    },
+    "uv.lock": {
+      "sha256": "c7ab03f71b9c55fab8d57386419fe6d2870bc2370c6a5722aff282bc23afa59d",
+      "bytes": 152717
+    }
+  },
+  "integrity_scope": "local file integrity and declared settings; not proof of host/model enforcement or release acceptance"
+}

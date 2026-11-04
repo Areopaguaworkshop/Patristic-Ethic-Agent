@@ -47,6 +47,11 @@ type Config = {
   db: string
   policy?: string
   backend: string
+  provider?: string
+  interpreterModel?: string
+  remoteUrl?: string
+  apiKeyEnv?: string
+  interpreterTimeout?: string
   workdir: string
   timeoutMs: number
   logPath?: string
@@ -62,6 +67,11 @@ function readConfig(): Config {
     db: env("PEA_DB", "corpus/units.db") ?? "corpus/units.db",
     policy: env("PEA_POLICY"),
     backend: env("PEA_BACKEND", "fake") ?? "fake",
+    provider: env("PEA_PROVIDER"),
+    interpreterModel: env("PEA_INTERPRETER_MODEL") ?? env("PEA_MODEL"),
+    remoteUrl: env("PEA_REMOTE_URL"),
+    apiKeyEnv: env("PEA_API_KEY_ENV"),
+    interpreterTimeout: env("PEA_INTERPRETER_TIMEOUT"),
     workdir: env("PEA_WORKDIR", process.cwd()) ?? process.cwd(),
     timeoutMs: Number.isFinite(timeoutRaw) && timeoutRaw >= 1000 ? timeoutRaw : 20000,
     logPath: env("PEA_LOG"),
@@ -137,6 +147,13 @@ async function runCli(cfg: Config, client: any, envelope: any, hook: string): Pr
     cfg.db,
   ])
   if (cfg.policy) cmd.push("--policy", cfg.policy)
+  if (cfg.interpreterModel) cmd.push("--model", cfg.interpreterModel)
+  if (cfg.backend === "remote") {
+    if (cfg.provider) cmd.push("--provider", cfg.provider)
+    if (cfg.remoteUrl) cmd.push("--remote-url", cfg.remoteUrl)
+    if (cfg.apiKeyEnv) cmd.push("--api-key-env", cfg.apiKeyEnv)
+    if (cfg.interpreterTimeout) cmd.push("--timeout", cfg.interpreterTimeout)
+  }
   const payload = JSON.stringify(envelope)
 
   let stdout = ""
@@ -208,7 +225,7 @@ async function runCli(cfg: Config, client: any, envelope: any, hook: string): Pr
     result === null
     || !["proceed", "guide", "refuse", "clarify", "review", "withhold"].includes(result.action)
     || (["proceed", "guide"].includes(result.action) && result.failure != null)
-    || (result.action === "proceed" && result.decision != null && result.decision.disposition !== "allow")
+    || (result.action === "proceed" && (result.decision == null || result.decision.disposition !== "allow"))
   ) {
     logLine(cfg, client, { hook, type: "pea_cli_failure", detail: "invalid AssessResult JSON on stdout" })
     return null

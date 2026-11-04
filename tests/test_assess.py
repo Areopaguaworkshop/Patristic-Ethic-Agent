@@ -377,7 +377,7 @@ def test_audit_keys_present(tmp_path):
     for key in ("event_id", "session_id", "stage", "policy_version", "corpus_version", "latency_ms"):
         assert key in result.audit
     assert result.audit["latency_ms"] >= 0
-    assert result.audit["policy_version"] == "0.1.0-draft"
+    assert result.audit["policy_version"] == "0.1.0"
 
 
 def test_corpus_version_override_recorded(tmp_path):
@@ -391,3 +391,36 @@ def test_corpus_version_override_recorded(tmp_path):
         corpus_version="9.9.9",
     )
     assert result.audit["corpus_version"] == "9.9.9"
+
+
+def test_all_citations_filtered_out_marks_guidance_missing(tmp_path):
+    env = validate_envelope(json.loads((FIXTURES / "refuse.json").read_text()))
+    interp = FakeInterpreter({"poison": HARM_OBS})
+    result = assess(
+        env,
+        interpreter=interp,
+        policy_doc=_policy_doc(),
+        db_path=_db(tmp_path),
+        verify_fn=lambda *_: False,
+    )
+    assert result.guidance.citations == []
+    assert result.guidance.source_status == "missing"
+    assert result.guidance.limited is True
+    assert "insufficient evidence in this collection" in result.guidance.text
+
+
+def test_retrieve_escapes_embedded_quotes(tmp_path, monkeypatch):
+    from patristic_ethics import assess as assess_mod
+
+    db_path = tmp_path / "units.db"
+    db_path.write_bytes(b"")
+    seen = []
+    monkeypatch.setattr(
+        assess_mod.corpus,
+        "search_passages",
+        lambda db, query, limit=5: seen.append(query) or [],
+    )
+    units, status = assess_mod._retrieve(db_path, ['a"b'])
+    assert units == []
+    assert status == "missing"
+    assert seen == ['"a""b"']

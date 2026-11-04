@@ -1,0 +1,429 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Patristic Ethics Agent (PEA) — architecture",
+    "output": "pea-architecture.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/Areopaguaworkshop/Patristic-Ethic-Agent",
+      "provider": "github",
+      "link_mode": "local-only",
+      "revision": "3a77ad9e7f285bf90d4d0574cddf68b0ce7809ff"
+    },
+    "views": [
+      {
+        "id": "assessment-path",
+        "label": "Assessment path",
+        "focus": [
+          "assess",
+          "interpreter",
+          "policy",
+          "guidance",
+          "units_db"
+        ],
+        "note": "One turn: interpret, derive signals, retrieve exact quotations, apply frozen precedence, compose and verify guidance."
+      },
+      {
+        "id": "entry-surfaces",
+        "label": "Host entry surfaces",
+        "focus": [
+          "opencode",
+          "codex_claude",
+          "mcphost",
+          "native_plugin",
+          "hook_adapter",
+          "mcp_surface"
+        ],
+        "note": "Four ways a host reaches PEA, and what each surface can actually guarantee."
+      },
+      {
+        "id": "evidence-store",
+        "label": "Evidence and audit",
+        "focus": [
+          "units_db",
+          "runtime_db",
+          "assess"
+        ],
+        "note": "Retrieval reads the corpus index; reviews and audit events land in the operator-owned runtime store."
+      }
+    ],
+    "viewBox": [
+      990,
+      380
+    ]
+  },
+  "components": [
+    {
+      "id": "opencode",
+      "type": "external",
+      "label": "OpenCode",
+      "sublabel": "native plugin",
+      "pos": [
+        24,
+        70
+      ],
+      "size": [
+        140,
+        58
+      ]
+    },
+    {
+      "id": "codex_claude",
+      "type": "external",
+      "label": "Codex · Claude Code",
+      "sublabel": "command hooks",
+      "pos": [
+        24,
+        158
+      ],
+      "size": [
+        140,
+        58
+      ]
+    },
+    {
+      "id": "mcphost",
+      "type": "external",
+      "label": "MCP host",
+      "sublabel": "npx pea-mcp",
+      "pos": [
+        24,
+        246
+      ],
+      "size": [
+        140,
+        58
+      ]
+    },
+    {
+      "id": "native_plugin",
+      "type": "security",
+      "label": "OpenCode plugin",
+      "sublabel": "advisory + covered gate",
+      "pos": [
+        204,
+        72
+      ],
+      "size": [
+        160,
+        60
+      ],
+      "tag": "no display gate"
+    },
+    {
+      "id": "hook_adapter",
+      "type": "security",
+      "label": "PEA hooks",
+      "sublabel": "Codex · Claude Code",
+      "pos": [
+        204,
+        156
+      ],
+      "size": [
+        160,
+        60
+      ],
+      "tag": "fail-closed"
+    },
+    {
+      "id": "mcp_surface",
+      "type": "backend",
+      "label": "pea-mcp server",
+      "sublabel": "4 tools + proxy",
+      "pos": [
+        204,
+        240
+      ],
+      "size": [
+        160,
+        60
+      ],
+      "tag": "stdio"
+    },
+    {
+      "id": "assess",
+      "type": "backend",
+      "label": "assess.py",
+      "sublabel": "interpret → decide → guide",
+      "pos": [
+        404,
+        128
+      ],
+      "size": [
+        170,
+        140
+      ],
+      "tag": "stage-aware",
+      "sources": [
+        {
+          "path": "src/patristic_ethics/assess.py",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "interpreter",
+      "type": "cloud",
+      "label": "Interpreter",
+      "sublabel": "Fake · Ollama · remote",
+      "pos": [
+        640,
+        60
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "tag": "Observation",
+      "sources": [
+        {
+          "path": "src/patristic_ethics/interpreter.py",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "policy",
+      "type": "security",
+      "label": "Deterministic policy",
+      "sublabel": "rules.json · PEA-P01…P10",
+      "pos": [
+        640,
+        150
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "tag": "frozen order",
+      "sources": [
+        {
+          "path": "src/patristic_ethics/policy.py",
+          "line": 245
+        }
+      ]
+    },
+    {
+      "id": "guidance",
+      "type": "backend",
+      "label": "Guidance + verify",
+      "sublabel": "compose · exact quotes",
+      "pos": [
+        640,
+        240
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "tag": "no fabrication",
+      "sources": [
+        {
+          "path": "src/patristic_ethics/guidance.py",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "units_db",
+      "type": "database",
+      "label": "Corpus index",
+      "sublabel": "units.db · FTS5",
+      "pos": [
+        820,
+        120
+      ],
+      "size": [
+        140,
+        72
+      ],
+      "tag": "exact retrieval"
+    },
+    {
+      "id": "runtime_db",
+      "type": "database",
+      "label": "runtime.db",
+      "sublabel": "reviews + audit",
+      "pos": [
+        820,
+        230
+      ],
+      "size": [
+        140,
+        72
+      ],
+      "tag": "operator-owned"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Host side",
+      "wraps": [
+        "opencode",
+        "codex_claude",
+        "mcphost"
+      ],
+      "pad": 14
+    },
+    {
+      "kind": "region",
+      "label": "Entry surfaces",
+      "wraps": [
+        "native_plugin",
+        "hook_adapter",
+        "mcp_surface"
+      ],
+      "pad": 14
+    },
+    {
+      "kind": "security-group",
+      "label": "PEA core — src/patristic_ethics",
+      "wraps": [
+        "assess",
+        "interpreter",
+        "policy",
+        "guidance"
+      ],
+      "pad": 14
+    },
+    {
+      "kind": "region",
+      "label": "Evidence + audit",
+      "wraps": [
+        "units_db",
+        "runtime_db"
+      ],
+      "pad": 14
+    }
+  ],
+  "connections": [
+    {
+      "id": "opencode-native",
+      "from": "opencode",
+      "to": "native_plugin",
+      "label": "plugin"
+    },
+    {
+      "id": "codex-hook",
+      "from": "codex_claude",
+      "to": "hook_adapter",
+      "label": "hook"
+    },
+    {
+      "id": "mcphost-mcp",
+      "from": "mcphost",
+      "to": "mcp_surface",
+      "label": "stdio"
+    },
+    {
+      "id": "native-assess",
+      "from": "native_plugin",
+      "to": "assess",
+      "variant": "emphasis"
+    },
+    {
+      "id": "hook-assess",
+      "from": "hook_adapter",
+      "to": "assess",
+      "variant": "emphasis"
+    },
+    {
+      "id": "mcp-assess",
+      "from": "mcp_surface",
+      "to": "assess",
+      "variant": "emphasis"
+    },
+    {
+      "id": "assess-interpret",
+      "from": "assess",
+      "to": "interpreter"
+    },
+    {
+      "id": "assess-policy",
+      "from": "assess",
+      "to": "policy"
+    },
+    {
+      "id": "assess-guidance",
+      "from": "assess",
+      "to": "guidance"
+    },
+    {
+      "id": "assess-units",
+      "from": "assess",
+      "to": "units_db",
+      "label": "retrieve",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "top",
+      "via": [
+        [
+          489,
+          18
+        ],
+        [
+          890,
+          18
+        ]
+      ],
+      "labelAt": [
+        600,
+        18
+      ]
+    },
+    {
+      "id": "assess-runtime",
+      "from": "assess",
+      "to": "runtime_db",
+      "label": "audit",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "bottom",
+      "via": [
+        [
+          489,
+          340
+        ],
+        [
+          890,
+          340
+        ]
+      ],
+      "labelAt": [
+        660,
+        340
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Entry surfaces",
+      "items": [
+        "Native adapters give advisory guidance plus a covered pre-tool gate; there is no before-display guarantee.",
+        "Controlled clients own the display: they buffer host output and release only assessed text.",
+        "The MCP server exposes four read-only tools; the proxy gates tools/call before a downstream server runs it."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Frozen precedence",
+      "items": [
+        "refuse → review → clarify → guide (distress) → guide → allow, tested in that order.",
+        "source_status is recorded but never consulted: a missing corpus cannot turn refuse into allow.",
+        "Interpreter failure withholds unreviewed output and asks to clarify on input."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Honest limits",
+      "items": [
+        "Policy and corpus remain owner-reviewed drafts; this is not a qualified release.",
+        "Operator OS isolation is scripted but unproven at the kernel boundary.",
+        "Further reading is bibliography only and is never quoted in guidance."
+      ]
+    }
+  ]
+}

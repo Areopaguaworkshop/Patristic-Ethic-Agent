@@ -37,6 +37,9 @@ def test_package_installs_user_facing_cli_commands() -> None:
         "pea-controlled": "patristic_ethics.controlled:main",
         "pea-controlled-claude": "patristic_ethics.claude_controlled:main",
         "pea-operator": "patristic_ethics.operator:main",
+        "pea-mcp": "patristic_ethics.mcp_server:main",
+        "pea-codex-hook": "patristic_ethics.adapters.codex:main",
+        "pea-claude-hook": "patristic_ethics.adapters.claude_code:main",
     }
 
 

@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-24",
+  "scope": "development scenarios; interpreter latency only; not accuracy evidence",
+  "backend": "ollama",
+  "provider": null,
+  "model": "deepseek-v4.1-flash:cloud",
+  "host": "http://localhost:11434",
+  "timeout_s": 8.0,
+  "cases_requested": 20,
+  "successes": 19,
+  "failures": [
+    {
+      "case": "dev-0008",
+      "kind": "timeout",
+      "reason": "ollama call timed out",
+      "seconds": 8.009
+    }
+  ],
+  "p50_s": 3.635,
+  "p95_s": 6.512,
+  "mean_s": 3.795,
+  "max_s": 6.512,
+  "p50_all_s": 3.635,
+  "p95_all_s": 6.512,
+  "target_p95_s": 8.0,
+  "target_met": false,
+  "success_rate": 0.95,
+  "all_attempts_succeeded": false,
+  "p95_target_met": true,
+  "gate_met": false
+}

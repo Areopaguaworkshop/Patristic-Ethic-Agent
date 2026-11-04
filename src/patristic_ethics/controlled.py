@@ -38,24 +38,25 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Callable
 
+from . import paths
 from .adapters.history import MAX_MESSAGES, MAX_CHARS
 from .assess import AssessResult, assess
 from .cli import positive_context_length
 from .context import ContextEnvelope, build_envelope
 from .corpus import sha256_text
 from .guidance import GuidanceResult, OutputCheck, assess_output, revise_once
-from .interpreter import FakeInterpreter, InterpreterFailure, OllamaInterpreter
+from .interpreter import FakeInterpreter, InterpreterFailure, OllamaInterpreter, PROVIDERS, RemoteInterpreter
 from .policy import load_policy
 
 HOST_NAME = "opencode"
 HOST_VERSION = "1.18.34"  # probed version (docs/host-coverage.md)
 HOST_MODE = "controlled"
 DEFAULT_CORPUS_VERSION = "0.1.0-draft"
-DEFAULT_DB = "corpus/units.db"
-DEFAULT_POLICY = "policy/rules.json"
+DEFAULT_DB = str(paths.default_db_path())
+DEFAULT_POLICY = str(paths.default_policy_path())
 # Grammar-capable per probe S1: ornith-1.5:9b fails OpenCode's tool schema.
 DEFAULT_HOST_MODEL = "ollama/deepseek-v4.1-flash:cloud"
-DEFAULT_INTERPRETER_MODEL = "ornith-1.5:9b"
+DEFAULT_INTERPRETER_MODEL = "deepseek-v4.1-flash:cloud"
 DEFAULT_OLLAMA_HOST = "http://localhost:11434"
 DEFAULT_TIMEOUT = 600.0
 CONTROLLED_CONFIG = {
@@ -218,8 +219,8 @@ def opencode_runner(
     try:
         profile = subprocess.run(
             ["opencode", "debug", "config", "--pure"],
-            capture_output=True, text=True, timeout=min(timeout_s, 30),
-            env=env, cwd=workdir,
+            capture_output=True, encoding="utf-8", errors="replace",
+            timeout=min(timeout_s, 30), env=env, cwd=workdir,
         )
     except (FileNotFoundError, OSError):
         return HostOutput(failure="could not inspect OpenCode's resolved config")
@@ -232,8 +233,8 @@ def opencode_runner(
         return HostOutput(failure=profile_error)
     try:
         proc = subprocess.run(
-            argv, capture_output=True, text=True, timeout=timeout_s, env=env,
-            cwd=workdir,
+            argv, capture_output=True, encoding="utf-8", errors="replace",
+            timeout=timeout_s, env=env, cwd=workdir,
         )
     except FileNotFoundError:
         return HostOutput(failure="opencode executable not found on PATH")
@@ -275,11 +276,16 @@ class ControlledClient:
         backend: str = "fake",
         db_path: str = DEFAULT_DB,
         policy_path: str = DEFAULT_POLICY,
-        interpreter_model: str = DEFAULT_INTERPRETER_MODEL,
+        interpreter_model: str | None = None,
         host: str = DEFAULT_OLLAMA_HOST,
         timeout_s: float = DEFAULT_TIMEOUT,
         interpreter_context_length: int | None = None,
         interpreter_think: bool | None = None,
+        interpreter_provider: str = "openai",
+        interpreter_base_url: str | None = None,
+        interpreter_api_key_env: str | None = None,
+        interpreter_json_mode: bool = True,
+        interpreter_timeout_s: float | None = None,
         host_name: str = HOST_NAME,
         host_version: str = HOST_VERSION,
     ):
@@ -307,14 +313,25 @@ class ControlledClient:
             self.policy_version = (
                 policy_version or policy_doc.get("policy_version", "")
             )
-            interpreter = (
-                FakeInterpreter([])
-                if backend == "fake"
-                else OllamaInterpreter(
-                    model=interpreter_model, host=host, timeout_s=timeout_s,
-                    num_ctx=interpreter_context_length, think=interpreter_think,
+            if backend == "fake":
+                interpreter = FakeInterpreter([])
+            elif backend == "ollama":
+                interpreter = OllamaInterpreter(
+                    model=interpreter_model or DEFAULT_INTERPRETER_MODEL,
+                    host=host,
+                    timeout_s=interpreter_timeout_s or timeout_s,
+                    num_ctx=interpreter_context_length,
+                    think=interpreter_think,
                 )
-            )
+            else:
+                interpreter = RemoteInterpreter(
+                    provider=interpreter_provider,
+                    model=interpreter_model,
+                    base_url=interpreter_base_url,
+                    api_key_env=interpreter_api_key_env,
+                    timeout_s=interpreter_timeout_s or 8.0,
+                    json_mode=interpreter_json_mode,
+                )
 
             def _assessor(envelope: ContextEnvelope) -> AssessResult:
                 return assess(
@@ -359,8 +376,10 @@ class ControlledClient:
                 "proceed", "guide", "refuse", "clarify", "review", "withhold",
             ):
                 raise ValueError("invalid assessment result")
-            if result.action == "proceed" and result.decision is not None and result.decision.disposition != "allow":
-                raise ValueError("proceed conflicts with semantic disposition")
+            if result.action == "proceed" and (
+                result.decision is None or result.decision.disposition != "allow"
+            ):
+                raise ValueError("proceed requires an allow decision")
             if result.failure is not None and result.action in ("proceed", "guide"):
                 raise ValueError("failed assessment cannot release or invoke host")
             return result
@@ -613,14 +632,23 @@ def _parser() -> argparse.ArgumentParser:
         help="host model for `opencode run -m` (e.g. ollama/deepseek-v4.1-flash:cloud)",
     )
     p.add_argument(
-        "--backend", choices=["fake", "ollama"], default="fake",
+        "--backend", choices=["fake", "ollama", "remote"], default="fake",
         help="PEA interpreter backend (default: fake)",
     )
     p.add_argument("--db", default=DEFAULT_DB)
     p.add_argument("--policy", default=DEFAULT_POLICY)
-    p.add_argument("--interpreter-model", default=DEFAULT_INTERPRETER_MODEL)
+    p.add_argument("--interpreter-model", default=None,
+                   help="Ollama model name, or the remote model ID")
     p.add_argument("--host", default=DEFAULT_OLLAMA_HOST)
     p.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT)
+    p.add_argument("--interpreter-provider", choices=sorted(PROVIDERS), default="openai")
+    p.add_argument("--interpreter-base-url", default=None)
+    p.add_argument("--interpreter-api-key-env", default=None)
+    p.add_argument("--no-interpreter-json-mode", dest="interpreter_json_mode",
+                   action="store_false")
+    p.add_argument("--interpreter-timeout", type=float, default=None,
+                   help="remote interpreter timeout; defaults to 8 seconds")
+    p.set_defaults(interpreter_json_mode=True)
     p.add_argument("--interpreter-context-length", type=positive_context_length, default=None,
                    help="PEA Ollama context length; does not configure the host model")
     p.add_argument("--interpreter-thinking", choices=["model-default", "on", "off"],
@@ -650,6 +678,11 @@ def main(argv: list[str] | None = None) -> int:
             timeout_s=args.timeout,
             interpreter_context_length=args.interpreter_context_length,
             interpreter_think={"model-default": None, "on": True, "off": False}[args.interpreter_thinking],
+            interpreter_provider=args.interpreter_provider,
+            interpreter_base_url=args.interpreter_base_url,
+            interpreter_api_key_env=args.interpreter_api_key_env,
+            interpreter_json_mode=args.interpreter_json_mode,
+            interpreter_timeout_s=args.interpreter_timeout,
         )
     except Exception as e:  # policy load or backend construction failure
         print(json.dumps({"error": "setup failed", "detail": str(e)}), file=sys.stderr)

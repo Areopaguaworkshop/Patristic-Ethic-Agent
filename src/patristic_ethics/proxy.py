@@ -165,7 +165,7 @@ def assess_tool_call(
         "earlier_excerpts": [],
         "proposed_action": {"tool": name, "arguments": args},
         "history": {"complete": False, "collection_errors": ["arguments-only assessment"]},
-        "policy_version": "0.1.0-draft",
+        "policy_version": "0.1.0",
         "corpus_version": "0.1.0-draft",
         "language": "en",
     })

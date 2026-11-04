@@ -1,7 +1,10 @@
 [project]
 name = "patristic-ethics"
 version = "0.0.1"
-description = "PEA (Patristic Ethics Agent) - ethics middleware probes for LLM agent hosts"
+description = "PEA (Patristic Ethics Agent) - a runtime ethics layer for LLM agent hosts"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 dependencies = [
     "mcp>=2.3,<3",
@@ -14,6 +17,13 @@ pea = "patristic_ethics.cli:main"
 pea-controlled = "patristic_ethics.controlled:main"
 pea-controlled-claude = "patristic_ethics.claude_controlled:main"
 pea-operator = "patristic_ethics.operator:main"
+pea-mcp = "patristic_ethics.mcp_server:main"
+pea-codex-hook = "patristic_ethics.adapters.codex:main"
+pea-claude-hook = "patristic_ethics.adapters.claude_code:main"
+
+[project.urls]
+Homepage = "https://github.com/Areopaguaworkshop/Patristic-Ethic-Agent"
+Repository = "https://github.com/Areopaguaworkshop/Patristic-Ethic-Agent"
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
@@ -24,6 +34,14 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/patristic_ethics"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/src",
+  "/README.md",
+  "/LICENSE",
+  "/pyproject.toml",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -9,7 +9,11 @@ uncertainty (InterpreterUnavailable), never a moral conclusion.
 from __future__ import annotations
 
 import json
+import os
+import re
 import socket
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 from typing import Literal, Protocol, Union
 
@@ -107,12 +111,60 @@ class FakeInterpreter:
         return result
 
 
+_LIST_FIELDS = (
+    "affected_parties",
+    "topics",
+    "benign_explanations",
+    "unresolved_ambiguity",
+)
+
+_EMPTY_AMBIGUITY = re.compile(
+    r"^(?:none|no|n/a|nothing|not ambiguous|no ambiguity|the request is clear)\b",
+    re.IGNORECASE,
+)
+
+
+def normalize_observation_payload(payload: dict) -> dict:
+    """Tolerate single-string list fields and numeric-string confidence.
+
+    The model still has to produce valid JSON and valid semantic content; this
+    only prevents a harmless type drift from becoming a false outage.
+    """
+    if not isinstance(payload, dict):
+        return payload
+    data = dict(payload)
+    for key in _LIST_FIELDS:
+        value = data.get(key)
+        if value is None:
+            data[key] = []
+        elif isinstance(value, str):
+            data[key] = [value]
+    ambiguity = data.get("unresolved_ambiguity")
+    if isinstance(ambiguity, list):
+        data["unresolved_ambiguity"] = [
+            item for item in ambiguity
+            if not (isinstance(item, str) and _EMPTY_AMBIGUITY.match(item.strip()))
+        ]
+    evidence = data.get("evidence")
+    if evidence is None:
+        data["evidence"] = []
+    elif isinstance(evidence, dict):
+        data["evidence"] = [evidence]
+    confidence = data.get("confidence")
+    if isinstance(confidence, str):
+        try:
+            data["confidence"] = float(confidence)
+        except ValueError:
+            data["confidence"] = None
+    return data
+
+
 class OllamaInterpreter:
     """Local Ollama backend. One attempt, no retries, no tools."""
 
     def __init__(
         self,
-        model: str = "ornith-1.5:9b",
+        model: str = "deepseek-v4.1-flash:cloud",
         host: str = "http://localhost:11434",
         timeout_s: float = 60.0,
         num_ctx: int | None = None,
@@ -168,31 +220,12 @@ class OllamaInterpreter:
     )
 
     def _prompt(self, envelope: ContextEnvelope) -> str:
-        # ponytail: flat text serialization; adapters may refine later.
-        lines = [
-            "History metadata (adapter supplied): " + json.dumps(envelope.history.model_dump(), ensure_ascii=False),
-            f"Message current_request (role=user, origin=user, stage={envelope.stage}): "
-            f"{envelope.request}"
-        ]
-        for m in envelope.messages:
-            lines.append(f"Message {m.source_id} (role={m.role}, origin={m.origin}): {m.text}")
-        for e in envelope.earlier_excerpts:
-            lines.append(f"Earlier excerpt {e.source_id}: {e.text}")
-        if envelope.summary:
-            lines.append(f"Summary {envelope.summary.source_id} (refs={json.dumps(envelope.summary.refs)}): {envelope.summary.text}")
-        if envelope.proposed_action:
-            action = envelope.proposed_action
-            action_text = f"{action.tool} {json.dumps(action.arguments, sort_keys=True, ensure_ascii=False)}"
-            lines.append(f"Message proposed_action (role=tool, origin=tool): {action_text}")
-        if envelope.candidate_response:
-            lines.append(f"Candidate response: {envelope.candidate_response}")
-        lines.append(self._TASK)
-        return "\n".join(lines)
+        return build_prompt(envelope, self._TASK)
 
     def interpret(self, envelope: ContextEnvelope) -> Observation:
         self.last_usage = None
         try:
-            options = {"temperature": 0, "num_predict": 512}
+            options = {"temperature": 0, "num_predict": 2048}
             if self.num_ctx is not None:
                 options["num_ctx"] = self.num_ctx
             thinking = {} if self.think is None else {"think": self.think}
@@ -230,7 +263,7 @@ class OllamaInterpreter:
             ) from e
 
         try:
-            parsed = json.loads(content)
+            parsed = normalize_observation_payload(json.loads(content))
         except json.JSONDecodeError as e:
             raise InterpreterUnavailable(
                 InterpreterFailure(
@@ -249,3 +282,273 @@ class OllamaInterpreter:
                     kind="schema",
                 )
             ) from e
+
+
+def build_prompt(envelope: ContextEnvelope, task: str) -> str:
+    """Shared flat-text prompt for local and remote interpreters."""
+    lines = [
+        "History metadata (adapter supplied): "
+        + json.dumps(envelope.history.model_dump(), ensure_ascii=False),
+        f"Message current_request (role=user, origin=user, stage={envelope.stage}): "
+        f"{envelope.request}",
+    ]
+    for message in envelope.messages:
+        lines.append(
+            f"Message {message.source_id} (role={message.role}, origin={message.origin}): {message.text}"
+        )
+    for excerpt in envelope.earlier_excerpts:
+        lines.append(f"Earlier excerpt {excerpt.source_id}: {excerpt.text}")
+    if envelope.summary:
+        lines.append(
+            f"Summary {envelope.summary.source_id} "
+            f"(refs={json.dumps(envelope.summary.refs)}): {envelope.summary.text}"
+        )
+    if envelope.proposed_action:
+        action = envelope.proposed_action
+        action_text = (
+            f"{action.tool} "
+            f"{json.dumps(action.arguments, sort_keys=True, ensure_ascii=False)}"
+        )
+        lines.append(f"Message proposed_action (role=tool, origin=tool): {action_text}")
+    if envelope.candidate_response:
+        lines.append(f"Candidate response: {envelope.candidate_response}")
+    lines.append(task)
+    return "\n".join(lines)
+
+
+# Provider presets. API keys are read from the environment; never pass them
+# on the command line or write them to logs.
+PROVIDERS: dict[str, dict[str, str | None]] = {
+    "openai": {
+        "kind": "openai",
+        "base_url": "https://api.openai.com/v1",
+        "api_key_env": "OPENAI_API_KEY",
+        "default_model": None,
+    },
+    "deepseek": {
+        "kind": "openai",
+        "base_url": "https://api.deepseek.com",
+        "api_key_env": "DEEPSEEK_API_KEY",
+        "default_model": "deepseek-chat",
+    },
+    "openrouter": {
+        "kind": "openai",
+        "base_url": "https://openrouter.ai/api/v1",
+        "api_key_env": "OPENROUTER_API_KEY",
+        "default_model": None,
+    },
+    "groq": {
+        "kind": "openai",
+        "base_url": "https://api.groq.com/openai/v1",
+        "api_key_env": "GROQ_API_KEY",
+        "default_model": None,
+    },
+    "together": {
+        "kind": "openai",
+        "base_url": "https://api.together.xyz/v1",
+        "api_key_env": "TOGETHER_API_KEY",
+        "default_model": None,
+    },
+    "anthropic": {
+        "kind": "anthropic",
+        "base_url": "https://api.anthropic.com/v1",
+        "api_key_env": "ANTHROPIC_API_KEY",
+        "default_model": None,
+    },
+    "custom": {
+        "kind": "openai",
+        "base_url": None,
+        "api_key_env": "PEA_REMOTE_API_KEY",
+        "default_model": None,
+    },
+}
+
+
+class RemoteInterpreter:
+    """OpenAI-compatible or Anthropic remote backend. One attempt, no tools."""
+
+    def __init__(
+        self,
+        provider: str = "openai",
+        model: str | None = None,
+        base_url: str | None = None,
+        api_key_env: str | None = None,
+        timeout_s: float = 8.0,
+        json_mode: bool = True,
+        max_tokens: int = 512,
+        api_key: str | None = None,
+    ):
+        provider = provider.casefold()
+        if provider not in PROVIDERS:
+            raise ValueError(
+                f"unknown provider {provider!r}; choose one of {sorted(PROVIDERS)}"
+            )
+        config = PROVIDERS[provider]
+        self.provider = provider
+        self.kind = str(config["kind"])
+        self.model = model or config.get("default_model")
+        if not self.model:
+            raise ValueError(f"{provider} requires an explicit model")
+        self.base_url = (base_url or config.get("base_url") or "").rstrip("/")
+        if not self.base_url:
+            raise ValueError("custom provider requires a base_url")
+        env_name = api_key_env or str(config["api_key_env"])
+        key = api_key if api_key is not None else os.environ.get(env_name, "")
+        if not key:
+            raise ValueError(f"{env_name} is not set")
+        self._key = key
+        self._env_name = env_name
+        self.timeout_s = timeout_s
+        self.json_mode = json_mode
+        self.max_tokens = max_tokens
+        self.last_usage: dict[str, int | None] | None = None
+
+    def _post(self, path: str, payload: dict, headers: dict[str, str]) -> dict:
+        url = self.base_url + path
+        request = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json", **headers},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout_s) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            body = exc.read(1000).decode("utf-8", errors="replace")
+            raise InterpreterUnavailable(
+                InterpreterFailure(
+                    reason=f"{self.provider} HTTP {exc.code}",
+                    detail=body[:300],
+                    kind="other",
+                )
+            ) from exc
+        except (socket.timeout, TimeoutError) as exc:
+            raise InterpreterUnavailable(
+                InterpreterFailure(
+                    reason=f"{self.provider} call timed out",
+                    detail=str(exc),
+                    kind="timeout",
+                )
+            ) from exc
+        except urllib.error.URLError as exc:
+            if isinstance(exc.reason, (socket.timeout, TimeoutError)):
+                raise InterpreterUnavailable(
+                    InterpreterFailure(
+                        reason=f"{self.provider} call timed out",
+                        detail=str(exc.reason),
+                        kind="timeout",
+                    )
+                ) from exc
+            raise InterpreterUnavailable(
+                InterpreterFailure(
+                    reason=f"{self.provider} connection failed",
+                    detail=str(exc.reason),
+                    kind="connection",
+                )
+            ) from exc
+        except Exception as exc:
+            raise InterpreterUnavailable(
+                InterpreterFailure(
+                    reason=f"{self.provider} call failed: {type(exc).__name__}",
+                    detail=str(exc),
+                    kind="other",
+                )
+            ) from exc
+
+    @staticmethod
+    def _content(value) -> str:
+        if isinstance(value, str):
+            return value
+        if isinstance(value, list):
+            parts = []
+            for part in value:
+                if isinstance(part, dict) and isinstance(part.get("text"), str):
+                    parts.append(part["text"])
+            return "".join(parts)
+        return ""
+
+    def _parse(self, content: str) -> Observation:
+        text = content.strip()
+        if text.startswith("```"):
+            text = re.sub(r"^```(?:json)?\s*", "", text)
+            text = re.sub(r"\s*```$", "", text)
+        try:
+            parsed = normalize_observation_payload(json.loads(text))
+        except json.JSONDecodeError as exc:
+            raise InterpreterUnavailable(
+                InterpreterFailure(
+                    reason="model output is not valid JSON",
+                    detail=str(exc),
+                    kind="schema",
+                )
+            ) from exc
+        try:
+            return Observation.model_validate(parsed)
+        except ValidationError as exc:
+            raise InterpreterUnavailable(
+                InterpreterFailure(
+                    reason="model output does not match the Observation schema",
+                    detail=str(exc.errors()),
+                    kind="schema",
+                )
+            ) from exc
+
+    def interpret(self, envelope: ContextEnvelope) -> Observation:
+        self.last_usage = None
+        prompt = build_prompt(envelope, OllamaInterpreter._TASK)
+        if self.kind == "anthropic":
+            payload = {
+                "model": self.model,
+                "max_tokens": self.max_tokens,
+                "temperature": 0,
+                "system": OllamaInterpreter._TASK,
+                "messages": [{"role": "user", "content": prompt}],
+            }
+            data = self._post(
+                "/messages",
+                payload,
+                {
+                    "x-api-key": self._key,
+                    "anthropic-version": "2023-06-01",
+                },
+            )
+            usage = data.get("usage") or {}
+            self.last_usage = {
+                "prompt_tokens": usage.get("input_tokens"),
+                "completion_tokens": usage.get("output_tokens"),
+            }
+            content = self._content(data.get("content"))
+        else:
+            payload = {
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": OllamaInterpreter._TASK},
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": 0,
+                "max_tokens": self.max_tokens,
+            }
+            if self.json_mode:
+                payload["response_format"] = {"type": "json_object"}
+            data = self._post(
+                "/chat/completions",
+                payload,
+                {"Authorization": f"Bearer {self._key}"},
+            )
+            try:
+                content = data["choices"][0]["message"]["content"]
+            except (KeyError, IndexError, TypeError) as exc:
+                raise InterpreterUnavailable(
+                    InterpreterFailure(
+                        reason=f"{self.provider} response has no message content",
+                        detail=str(exc),
+                        kind="schema",
+                    )
+                ) from exc
+            usage = data.get("usage") or {}
+            self.last_usage = {
+                "prompt_tokens": usage.get("prompt_tokens"),
+                "completion_tokens": usage.get("completion_tokens"),
+            }
+        return self._parse(self._content(content))

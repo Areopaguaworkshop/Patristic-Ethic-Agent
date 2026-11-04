@@ -253,7 +253,7 @@ def test_main_refuse_prints_single_protocol_line(monkeypatch) -> None:
 
 def test_main_proceed_prints_nothing(monkeypatch) -> None:
     def runner(_envelope: str) -> str:
-        return json.dumps({"action": "proceed", "guidance": None})
+        return json.dumps({"action": "proceed", "guidance": None, "decision": {"disposition": "allow"}})
 
     code, stdout, _ = _run_main(
         monkeypatch, json.dumps(payload("PreToolUse")), runner
@@ -303,7 +303,7 @@ def test_main_bad_runner_output_still_warns_on_posthoc_event(monkeypatch) -> Non
 def test_handle_proceed_returns_none_without_diag() -> None:
     out, diag = claude_code.handle(
         payload("UserPromptSubmit"),
-        lambda _e: json.dumps({"action": "proceed", "guidance": None}),
+        lambda _e: json.dumps({"action": "proceed", "guidance": None, "decision": {"disposition": "allow"}}),
     )
     assert out is None and diag is None
 

@@ -52,6 +52,7 @@ import sqlite3
 import threading
 import time
 import uuid
+from pathlib import Path
 from typing import Any
 
 __all__ = [
@@ -119,6 +120,8 @@ class RuntimeStore:
 
     def __init__(self, db_path: Any):
         self.db_path = str(db_path)
+        if self.db_path != ":memory:":
+            Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         self._local = threading.local()
         self.conn.executescript(_SCHEMA)
         self._migrate_reviews()

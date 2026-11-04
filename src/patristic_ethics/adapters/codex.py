@@ -33,7 +33,7 @@ from .result import validate_result
 
 HOST_NAME = "codex"
 HOST_VERSION_DEFAULT = "0.160.0"
-POLICY_VERSION = "0.1.0-draft"
+POLICY_VERSION = "0.1.0"
 CORPUS_VERSION = "0.1.0-draft"
 CLI_TIMEOUT_S = 15.0
 REASON_MAX = 500
@@ -210,6 +210,16 @@ def _run_cli(envelope: dict) -> dict:
         cmd += ["--db", os.environ["PEA_DB"]]
     if os.environ.get("PEA_POLICY"):
         cmd += ["--policy", os.environ["PEA_POLICY"]]
+    for env_name, flag in (
+        ("PEA_PROVIDER", "--provider"),
+        ("PEA_INTERPRETER_MODEL", "--model"),
+        ("PEA_REMOTE_URL", "--remote-url"),
+        ("PEA_API_KEY_ENV", "--api-key-env"),
+        ("PEA_INTERPRETER_TIMEOUT", "--timeout"),
+    ):
+        value = os.environ.get(env_name)
+        if value:
+            cmd += [flag, value]
     proc = subprocess.run(
         cmd,
         input=json.dumps(envelope),

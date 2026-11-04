@@ -12,7 +12,7 @@
 
 **Design doc:** `docs/plans/2026-10-05-patristic-ethic-agent-design.md` (decisions locked 2026-10-05: both enforcement modes; pre-schism consensus; dialogue + actions; Greek/Latin/English/Syriac).
 
-**Repo root:** `/home/ajiap/project/EthicAgent` (not currently a git repo — Task A.1 initializes it).
+**Repo root:** the project checkout (Task A.1 initializes the repository).
 
 **Global conventions:**
 - Every task: write failing test → run → minimal implementation → run → commit.

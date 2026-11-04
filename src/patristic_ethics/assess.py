@@ -16,12 +16,12 @@ from __future__ import annotations
 
 import json
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 from . import corpus, guidance, policy
-from .interpreter import InterpreterFailure, InterpreterUnavailable
+from .interpreter import Evidence, InterpreterFailure, InterpreterUnavailable, Observation
 
 if TYPE_CHECKING:
     from .context import ContextEnvelope
@@ -113,8 +113,9 @@ def _retrieve(db_path, topics: list[str]) -> tuple[list, str]:
     for topic in topics[:8]:
         try:
             # ponytail: quote each term; hyphenated topics like "self-harm"
-            # are FTS5 syntax errors unquoted.
-            hits = corpus.search_passages(db_path, f'"{topic}"', limit=5)
+            # are FTS5 syntax errors unquoted. Internal quotes need doubling.
+            quoted = '"' + topic.replace('"', '""') + '"'
+            hits = corpus.search_passages(db_path, quoted, limit=5)
             for u in hits:
                 if u.id not in seen:
                     seen.add(u.id)
@@ -135,6 +136,87 @@ def _withheld_guidance() -> "GuidanceResult":
     )
 
 
+def _safety_text(envelope: "ContextEnvelope") -> str:
+    """Request plus the action or candidate that the fallback must inspect."""
+    text = envelope.request
+    if envelope.proposed_action is not None:
+        text += (
+            "\nTool: " + envelope.proposed_action.tool
+            + " Arguments: " + json.dumps(
+                envelope.proposed_action.arguments, sort_keys=True, ensure_ascii=False
+            )
+        )
+    if envelope.candidate_response:
+        text += "\nCandidate: " + envelope.candidate_response
+    return text
+
+
+def _non_overridable_safety(staged, policy_doc: dict, db_path):
+    """Refuse explicit P01-P03 harm without depending on the model.
+
+    This is the emergency lexical path for the gravest principles. It runs
+    before the interpreter, so an interpreter outage cannot turn a clear
+    harmful request into a mere clarification. A proposed tool action is
+    treated as facilitation because the action itself is the request.
+    """
+    if staged.stage not in ("input", "pre_action"):
+        return None
+    text = _safety_text(staged)
+    safety = policy.explicit_harm_candidates(text)
+    if not safety:
+        return None
+    signals = policy.augment_signals_from_text(
+        policy.Signals(facilitation=False, distress=False, ambiguity=False, benign=False),
+        text,
+    )
+    if staged.stage == "pre_action" or any(
+        marker in text.lower() for marker in policy.REQUEST_MARKERS
+    ):
+        signals = replace(signals, facilitation=True)
+    elif not signals.facilitation:
+        return None
+    matched = policy.merge_lexical_matches([], safety, policy_doc)
+    topics = list(safety)
+    for principle in policy_doc.get("principles", []):
+        if principle["id"] in safety:
+            topics.extend(principle.get("topics", []))
+    units, source_status = _retrieve(db_path, topics)
+    observation = Observation(
+        requested_assistance=text,
+        assistance_type="facilitation",
+        affected_parties=[],
+        topics=topics,
+        expressed_intent="explicit harmful request",
+        evidence=[Evidence(source_id="current_request", quote=text)],
+        benign_explanations=[],
+        unresolved_ambiguity=[],
+        confidence=1.0,
+    )
+    decision = policy.evaluate_policy(
+        observation,
+        matched=matched,
+        signals=signals,
+        source_status=source_status,  # type: ignore[arg-type]
+        policy_version=policy_doc.get("policy_version", ""),
+    )
+    descriptions = {
+        p["id"]: f"{p['id']} {p.get('title', p['id'])}"
+        for p in policy_doc.get("principles", [])
+    }
+    result = guidance.compose_guidance(
+        decision, passages=units, principle_descriptions=descriptions
+    )
+    result.citations = guidance.filter_verified(
+        result.citations, _default_verify(db_path, units)
+    )
+    if units and not result.citations:
+        result = guidance.compose_guidance(
+            decision, passages=[], principle_descriptions=descriptions
+        )
+    action = _ACTION_FOR_DISPOSITION.get(decision.disposition, "withhold")
+    return decision, result, action
+
+
 def assess(
     envelope: "ContextEnvelope",
     *,
@@ -152,6 +234,17 @@ def assess(
         "policy_version": policy_doc.get("policy_version", ""),
         "corpus_version": corpus_version,
     }
+    policy_problems = policy.validate_policy_doc(policy_doc)
+    if policy_problems:
+        failure = InterpreterFailure(
+            reason="invalid policy document",
+            detail="; ".join(policy_problems),
+            kind="schema",
+        )
+        return _finish(
+            "withhold", None, _withheld_guidance(), failure, audit, start, None
+        )
+
     decision = None
     guidance_result = None
     failure = None
@@ -160,6 +253,10 @@ def assess(
     try:
         staged = envelope.model_copy(deep=True)
         staged.request = _stage_request(envelope)
+        safety = _non_overridable_safety(staged, policy_doc, db_path)
+        if safety is not None:
+            decision, guidance_result, action = safety
+            return _finish(action, decision, guidance_result, None, audit, start, None)
         obs = interpreter.interpret(staged)
         _validate_observation_evidence(obs, envelope)
     except InterpreterUnavailable as e:
@@ -183,18 +280,22 @@ def assess(
 
     signals = policy.derive_signals(obs)
     matched = policy.match_principles(obs, policy_doc)
-    # Emergency lexical fallback (plan §6.3): only when the interpreter
-    # produced no topics (degraded/fake backend). Candidate generation,
-    # never the primary path; benign guards suppress technical/teaching
-    # contexts. Documented ceiling: prevention phrasing can false-positive.
+    # Emergency lexical fallback (plan §6.3): the full candidate set runs
+    # only when the interpreter produced no topics. The hard P01-P03 set is
+    # always merged, and the text includes proposed tool arguments or the
+    # output candidate, so a model that returns unrelated topics cannot hide
+    # an explicit harmful request.
+    lexical_text = _safety_text(staged)
+    hard = policy.explicit_harm_candidates(lexical_text)
+    if hard:
+        matched = policy.merge_lexical_matches(matched, hard, policy_doc)
+    candidates = policy.lexical_candidates(lexical_text)
     if not obs.topics:
-        candidates = policy.lexical_candidates(staged.request)
         if candidates:
             matched = policy.merge_lexical_matches(matched, candidates, policy_doc)
-        # Distress/facilitation signals also come from raw text when the
-        # interpreter supplied no topics (e.g. distress with no principle
-        # marker), so augment regardless of candidate matches.
-        signals = policy.augment_signals_from_text(signals, staged.request)
+        signals = policy.augment_signals_from_text(signals, lexical_text)
+        if hard and staged.stage == "pre_action":
+            signals = replace(signals, facilitation=True)
 
     topics = list(obs.topics)
     for p in policy_doc.get("principles", []):
@@ -221,6 +322,10 @@ def assess(
     guidance_result.citations = guidance.filter_verified(
         guidance_result.citations, verifier
     )
+    if units and not guidance_result.citations:
+        guidance_result = guidance.compose_guidance(
+            decision, passages=[], principle_descriptions=descriptions
+        )
 
     if envelope.stage == "output":
         candidate = envelope.candidate_response or ""

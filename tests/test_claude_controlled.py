@@ -52,7 +52,7 @@ def test_claude_controlled_client_blocks_input_and_keeps_released_history():
         calls.append(envelope)
         if envelope.request == "harmful":
             return AssessResult(action="refuse", guidance=GuidanceResult(text="PEA refused"))
-        return AssessResult(action="proceed", guidance=GuidanceResult(text=""))
+        return AssessResult(action="proceed", decision=SimpleNamespace(disposition="allow"), guidance=GuidanceResult(text=""))
 
     prompts = []
 
@@ -89,7 +89,7 @@ def test_claude_controlled_client_blocks_input_and_keeps_released_history():
 def test_claude_candidate_is_replaced_before_release():
     def assessor(envelope):
         if envelope.stage == "input":
-            return AssessResult(action="proceed", guidance=GuidanceResult(text=""))
+            return AssessResult(action="proceed", decision=SimpleNamespace(disposition="allow"), guidance=GuidanceResult(text=""))
         return AssessResult(action="refuse", guidance=GuidanceResult(text="PEA refusal"))
 
     client = ControlledClient(

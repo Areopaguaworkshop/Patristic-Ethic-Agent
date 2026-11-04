@@ -79,7 +79,7 @@ your global config, use a throwaway project:
 mkdir -p /tmp/pea-codex-test/.codex
 cp examples/codex/hooks.json /tmp/pea-codex-test/.codex/hooks.json
 # adapt the "command" to point at this repo's CLI, e.g.:
-#   "command": "uv run --project /home/ajiap/project/EthicAgent python -m patristic_ethics.adapters.codex"
+#   "command": "uv run --project $PEA_REPO python -m patristic_ethics.adapters.codex"
 # ensure hooks are enabled (config.toml):  [features] hooks = true
 cd /tmp/pea-codex-test && codex
 ```

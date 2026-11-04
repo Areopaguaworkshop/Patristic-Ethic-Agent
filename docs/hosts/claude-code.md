@@ -96,7 +96,7 @@ Or copy the file to a scratch project as `.claude/settings.json`:
 
 ```sh
 mkdir /tmp/pea-claude-test && cd /tmp/pea-claude-test
-cp /home/ajiap/project/EthicAgent/examples/claude-code/settings.json \
+cp "$PEA_REPO/examples/claude-code/settings.json" \
    .claude/settings.json   # (mkdir -p .claude first)
 ```
 

@@ -20,7 +20,10 @@ def test_actual_source_reproduces_seed_and_sqlite_metadata(tmp_path):
 
     templates = selections()
     imported = import_sentences(SOURCE, templates)
-    assert imported == templates
+    assert [replace(u, review_status="draft-unreviewed") for u in imported] == [
+        replace(u, review_status="draft-unreviewed") for u in templates
+    ]
+    assert all(u.review_status == "draft-unreviewed" for u in imported)
     seed = tmp_path / "seed.jsonl"
     seed.write_text("".join(json.dumps(asdict(u), ensure_ascii=False) + "\n" for u in imported))
     db = build_db(seed, tmp_path / "corpus.db")
@@ -57,12 +60,15 @@ def test_pta_actual_source_reproduces_selected_span_and_metadata(tmp_path):
 
     templates = [u for u in load_seed(ROOT / "corpus/seed.jsonl") if u.source_id == PTA_ID]
     imported = import_pta_sections(ROOT / "tests/fixtures/tei/pta0022_grc1.xml", templates)
-    assert imported == templates
+    assert [replace(u, review_status="draft-unreviewed") for u in imported] == [
+        replace(u, review_status="draft-unreviewed") for u in templates
+    ]
+    assert all(u.review_status == "draft-unreviewed" for u in imported)
     seed = tmp_path / "seed.jsonl"
     seed.write_text("".join(json.dumps(asdict(u), ensure_ascii=False) + "\n" for u in imported))
     db = build_db(seed, tmp_path / "corpus.db")
-    assert get_passage(db, imported[0].id) == templates[0]
-    assert verify_quote(db, imported[0].id, templates[0].text)
+    assert get_passage(db, imported[0].id) == imported[0]
+    assert verify_quote(db, imported[0].id, imported[0].text)
 
 
 def test_lemma_extraction_excludes_variants_notes_and_preserves_tails():

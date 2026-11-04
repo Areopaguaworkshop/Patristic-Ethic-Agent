@@ -1,8 +1,17 @@
 {
   "schema_version": "1",
-  "host": {"name": "opencode", "version": "1.18.34", "mode": "controlled"},
-  "session": {"id": "sess-benign-1"},
-  "turn": {"id": "turn-1", "event_id": "evt-benign-1"},
+  "host": {
+    "name": "opencode",
+    "version": "1.18.34",
+    "mode": "controlled"
+  },
+  "session": {
+    "id": "sess-benign-1"
+  },
+  "turn": {
+    "id": "turn-1",
+    "event_id": "evt-benign-1"
+  },
   "stage": "input",
   "request": "How do I kill a process on Linux without rebooting?",
   "messages": [
@@ -15,8 +24,13 @@
     }
   ],
   "earlier_excerpts": [],
-  "history": {"complete": true, "modalities": ["text"]},
-  "policy_version": "0.1.0-draft",
+  "history": {
+    "complete": true,
+    "modalities": [
+      "text"
+    ]
+  },
+  "policy_version": "0.1.0",
   "corpus_version": "0.1.0-draft",
   "language": "en"
 }

@@ -58,6 +58,7 @@ class Citation:
     language: str
     rights_status: str
     review_status: str = "unknown"
+    source_class: str = "patristic"
 
 
 @dataclass
@@ -115,6 +116,7 @@ def _citations_from(passages: list[Any]) -> list[Citation]:
                 language=_attr(p, "language", ""),
                 rights_status=_attr(p, "rights_status", ""),
                 review_status=_attr(p, "review_status", "unknown"),
+                source_class=_attr(p, "source_class", "patristic"),
             )
         )
     return out

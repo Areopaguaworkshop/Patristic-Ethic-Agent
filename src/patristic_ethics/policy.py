@@ -7,6 +7,7 @@ precedence in evaluate_policy is FROZEN — see the numbered rules there.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
@@ -53,6 +54,17 @@ DISTRESS_MARKERS: tuple[str, ...] = (
 
 AMBIGUITY_WORDS: tuple[str, ...] = ("unclear", "ambiguous", "unknown")
 
+PRINCIPLE_IDS = {f"PEA-P{i:02d}" for i in range(1, 11)}
+NON_OVERRIDABLE_IDS = {"PEA-P01", "PEA-P02", "PEA-P03"}
+
+# A hard P01-P03 phrase plus one of these is a request for assistance, even
+# when no general facilitation marker appears. The model path remains primary;
+# this keeps the emergency screen from downgrading a direct request to advice.
+REQUEST_MARKERS: tuple[str, ...] = (
+    "tell me how", "explain how", "show me how", "how do i", "how can i",
+    "help me", "give me", "what is the best way", "i need to", "i want to",
+)
+
 # Emergency lexical candidate markers (plan §6.3): principle id -> terms.
 # Used ONLY when the structured interpreter produced no topics. This is a
 # tested fallback for degraded/fake backends, never the intention detector.
@@ -82,7 +94,11 @@ LEXICAL_MARKERS: dict[str, tuple[str, ...]] = {
     "PEA-P06": ("witch", "curse", "ritual", "occult"),
     "PEA-P08": ("furious", "rage", "hurt him", "revenge", "regret it"),
     "PEA-P09": ("sabotage", "envy", "jealous", "resent"),
-    "PEA-P10": ("drunk", "drink most nights", "alcohol", "orgies"),
+    "PEA-P10": (
+        "drunk", "drink most nights", "alcohol", "orgies", "gambling",
+        "betting", "casino", "compulsive scrolling", "can't stop scrolling",
+        "gaming addiction",
+    ),
 }
 
 # Documented benign guards: if any appears, the emergency fallback returns
@@ -91,10 +107,59 @@ LEXICAL_MARKERS: dict[str, tuple[str, ...]] = {
 # interpreter path remains the primary detector.
 BENIGN_GUARDS: tuple[str, ...] = (
     "kill a process", "kill the process", "kill processes",
-    "killed a process", "kill -9", "daemon", "server process",
+    "killed a process", "kill my process", "kill my own process",
+    "kill my server", "kill my app", "kill my daemon", "kill my container",
+    "kill -9", "daemon", "server process",
     "process id", "pid=", "docker",
     "for a class", "essay", "sunday school", "quotation", "history class",
 )
+
+# A direct technical target is the only benign use of "kill my". A mixed
+# message with any non-technical target still reaches the hard screen.
+_TECHNICAL_KILL_MY = re.compile(
+    r"\bkill my (?:own )?(?:process(?:es)?|server(?:s)?|daemon(?:s)?|"
+    r"container(?:s)?|pod(?:s)?|job(?:s)?|task(?:s)?|program(?:s)?|"
+    r"script(?:s)?|session(?:s)?|terminal(?:s)?|browser(?:s)?|"
+    r"app(?:lication)?s?|service(?:s)?|thread(?:s)?|worker(?:s)?)\b"
+)
+
+
+def _only_technical_kill_my(lowered: str) -> bool:
+    starts = [m.start() for m in re.finditer(r"\bkill my\b", lowered)]
+    return bool(starts) and all(_TECHNICAL_KILL_MY.match(lowered, start) for start in starts)
+
+
+EXPLICIT_HARM_MARKERS: dict[str, tuple[str, ...]] = {
+    "PEA-P01": (
+        "kill my", "murder my", "poison my", "shoot my", "stab my",
+        "kill him", "kill her", "beat him", "beat her", "dose of poison",
+    ),
+    "PEA-P02": ("rape", "force my", "sex slave"),
+    "PEA-P03": (
+        "recruit fighters", "join our cell", "go operational",
+        "build a bomb", "make a bomb",
+    ),
+}
+
+
+def explicit_harm_candidates(text: str) -> list[str]:
+    """High-confidence P01-P03 phrases, used before any model call.
+
+    This is the non-overridable path, so a global benign guard must never
+    suppress it. The only exception is a technical "kill my <process>" phrase
+    whose every occurrence has a technical object.
+    """
+    lowered = text.lower()
+    out: list[str] = []
+    for pid, markers in EXPLICIT_HARM_MARKERS.items():
+        for marker in markers:
+            if marker not in lowered:
+                continue
+            if marker == "kill my" and _only_technical_kill_my(lowered):
+                continue
+            out.append(pid)
+            break
+    return out
 
 
 def lexical_candidates(text: str) -> list[str]:
@@ -216,15 +281,70 @@ def derive_signals(observation: "Observation") -> Signals:
     return Signals(facilitation, distress, ambiguity, benign)
 
 
+def validate_policy_doc(doc: dict) -> list[str]:
+    """Return structural problems for a policy document; empty means usable.
+
+    The runtime is fail-closed: a policy with missing or incomplete principles
+    must not be accepted, because an empty principle list would allow every
+    request.
+    """
+    problems: list[str] = []
+    if not isinstance(doc, dict):
+        return ["policy must be a JSON object"]
+    if doc.get("schema_version") != "1.0":
+        problems.append("schema_version must be '1.0'")
+    version = doc.get("policy_version")
+    if not isinstance(version, str) or not version.strip():
+        problems.append("policy_version must be a non-empty string")
+    if doc.get("review_status") not in {"draft-unreviewed", "reviewed"}:
+        problems.append("review_status must be draft-unreviewed or reviewed")
+    principles = doc.get("principles")
+    if not isinstance(principles, list):
+        return problems + ["principles must be a list"]
+    ids: list[str] = []
+    for index, principle in enumerate(principles):
+        label = f"principles[{index}]"
+        if not isinstance(principle, dict):
+            problems.append(f"{label} must be an object")
+            continue
+        pid = principle.get("id")
+        if not isinstance(pid, str) or not pid.strip():
+            problems.append(f"{label} is missing id")
+            continue
+        ids.append(pid)
+        if not isinstance(principle.get("title"), str) or not principle["title"].strip():
+            problems.append(f"{pid} is missing title")
+        topics = principle.get("topics")
+        if not isinstance(topics, list) or not topics:
+            problems.append(f"{pid} must have a non-empty topics list")
+        if not isinstance(principle.get("non_overridable"), bool):
+            problems.append(f"{pid} must declare boolean non_overridable")
+        if pid in NON_OVERRIDABLE_IDS and principle.get("non_overridable") is not True:
+            problems.append(f"{pid} must be non-overridable")
+    if len(ids) != len(set(ids)):
+        problems.append("policy contains duplicate principle ids")
+    missing = sorted(PRINCIPLE_IDS - set(ids))
+    unexpected = sorted(set(ids) - PRINCIPLE_IDS)
+    if missing:
+        problems.append("policy is missing principles: " + ", ".join(missing))
+    if unexpected:
+        problems.append("policy has unknown principles: " + ", ".join(unexpected))
+    return problems
+
+
 def load_policy(path) -> dict:
-    """Load a policy document from a JSON file with clear errors."""
+    """Load and structurally validate a policy document with clear errors."""
     try:
         with open(path, encoding="utf-8") as f:
-            return json.load(f)
+            doc = json.load(f)
     except FileNotFoundError:
         raise FileNotFoundError(f"policy file not found: {path}") from None
     except json.JSONDecodeError as e:
         raise ValueError(f"policy file {path} is not valid JSON: {e}") from e
+    problems = validate_policy_doc(doc)
+    if problems:
+        raise ValueError(f"policy file {path} is invalid: " + "; ".join(problems))
+    return doc
 
 
 def match_principles(observation: "Observation", policy_doc: dict) -> list[PrincipleRef]:

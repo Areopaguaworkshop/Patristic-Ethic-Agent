@@ -18,7 +18,7 @@ from patristic_ethics.runtime_store import (
 
 ACTION = {"tool": "shell", "argv": ["rm", "-rf", "/tmp/x"]}
 CONTEXT = {"session": "s1", "recent": ["help me clean tmp files"]}
-PV = "0.1.0-draft"
+PV = "0.1.0"
 
 
 @pytest.fixture()

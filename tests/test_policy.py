@@ -1,5 +1,6 @@
 """Offline tests for the deterministic policy layer."""
 
+import json
 from pathlib import Path
 
 import pytest
@@ -13,6 +14,7 @@ from patristic_ethics.policy import (
     evaluate_policy,
     load_policy,
     match_principles,
+    validate_policy_doc,
 )
 
 RULES = Path(__file__).resolve().parents[1] / "policy" / "rules.json"
@@ -31,7 +33,7 @@ def obs(**kw) -> Observation:
     return Observation(**base)
 
 
-def evaluate(o, matched, signals, source_status: str = "verified", version="0.1.0-draft"):
+def evaluate(o, matched, signals, source_status: str = "verified", version="0.1.0"):
     return evaluate_policy(
         o,
         matched=matched,
@@ -105,8 +107,14 @@ def test_load_policy_reads_real_rules():
     if not RULES.exists():
         pytest.skip(f"policy file missing: {RULES}")
     doc = load_policy(RULES)
-    assert doc["policy_version"] == "0.1.0-draft"
+    assert doc["policy_version"] == "0.1.0"
     assert any(p["id"] == "PEA-P01" for p in doc["principles"])
+
+
+def test_p10_owner_scope_covers_gambling_gaming_and_scrolling(policy_doc):
+    p10 = next(p for p in policy_doc["principles"] if p["id"] == "PEA-P10")
+    for topic in ("gambling", "gaming", "compulsive scrolling"):
+        assert topic in p10["topics"]
 
 
 def test_load_policy_clear_errors(tmp_path):
@@ -116,6 +124,27 @@ def test_load_policy_clear_errors(tmp_path):
     bad.write_text("{not json")
     with pytest.raises(ValueError):
         load_policy(bad)
+
+
+def test_load_policy_rejects_empty_principles(tmp_path):
+    empty = tmp_path / "empty.json"
+    empty.write_text(json.dumps({
+        "schema_version": "1.0",
+        "policy_version": "0.1.0",
+        "review_status": "reviewed",
+        "principles": [],
+    }))
+    with pytest.raises(ValueError, match="missing principles"):
+        load_policy(empty)
+
+
+def test_validate_policy_requires_p01_p03_non_overridable(policy_doc):
+    doc = json.loads(json.dumps(policy_doc))
+    for principle in doc["principles"]:
+        if principle["id"] == "PEA-P01":
+            principle["non_overridable"] = False
+    problems = validate_policy_doc(doc)
+    assert any("PEA-P01 must be non-overridable" in problem for problem in problems)
 
 
 # --- match_principles ----------------------------------------------------

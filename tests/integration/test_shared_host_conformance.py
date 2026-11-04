@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 CASES_PATH = ROOT / "tests/fixtures/host_conformance/scenarios.jsonl"
 CASES = [json.loads(line) for line in CASES_PATH.read_text().splitlines()]
 PRIOR = "Earlier benign objective in the target session."
-INVALID = {"outage", "malformed", "missing-action", "unknown-action", "failed-forward", "conflicting-forward"}
+INVALID = {"outage", "malformed", "missing-action", "unknown-action", "failed-forward", "conflicting-forward", "missing-decision"}
 
 
 @pytest.mark.parametrize("adapter", [codex, claude_code], ids=["codex", "claude-code"])

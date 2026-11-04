@@ -8,7 +8,14 @@ import subprocess
 import sys
 
 from .cli import positive_context_length
-from .controlled import HOST_CONTEXT_PROMPT, ControlledClient, HostOutput
+from .controlled import (
+    DEFAULT_DB,
+    DEFAULT_POLICY,
+    HOST_CONTEXT_PROMPT,
+    ControlledClient,
+    HostOutput,
+)
+from .interpreter import PROVIDERS
 
 HOST_VERSION = "2.1.287"
 
@@ -77,12 +84,20 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--prompt", help="first prompt; optional with --interactive")
     parser.add_argument("--interactive", action="store_true")
     parser.add_argument("--dir", default=".", help="Claude Code working directory")
-    parser.add_argument("--backend", choices=["fake", "ollama"], required=True)
-    parser.add_argument("--db", default="corpus/units.db")
-    parser.add_argument("--policy", default="policy/rules.json")
-    parser.add_argument("--interpreter-model", default="ornith-1.5:9b")
+    parser.add_argument("--backend", choices=["fake", "ollama", "remote"], required=True)
+    parser.add_argument("--db", default=DEFAULT_DB)
+    parser.add_argument("--policy", default=DEFAULT_POLICY)
+    parser.add_argument("--interpreter-model", default=None)
     parser.add_argument("--ollama-host", default="http://localhost:11434")
     parser.add_argument("--timeout", type=float, default=600.0)
+    parser.add_argument("--interpreter-provider", choices=sorted(PROVIDERS), default="openai")
+    parser.add_argument("--interpreter-base-url", default=None)
+    parser.add_argument("--interpreter-api-key-env", default=None)
+    parser.add_argument("--no-interpreter-json-mode", dest="interpreter_json_mode",
+                        action="store_false")
+    parser.add_argument("--interpreter-timeout", type=float, default=None,
+                        help="remote interpreter timeout; defaults to 8 seconds")
+    parser.set_defaults(interpreter_json_mode=True)
     parser.add_argument("--interpreter-context-length", type=positive_context_length, default=None,
                         help="PEA Ollama context length; does not configure Claude")
     parser.add_argument("--interpreter-thinking", choices=["model-default", "on", "off"],
@@ -108,6 +123,11 @@ def main(argv: list[str] | None = None) -> int:
         timeout_s=args.timeout,
         interpreter_context_length=args.interpreter_context_length,
         interpreter_think={"model-default": None, "on": True, "off": False}[args.interpreter_thinking],
+        interpreter_provider=args.interpreter_provider,
+        interpreter_base_url=args.interpreter_base_url,
+        interpreter_api_key_env=args.interpreter_api_key_env,
+        interpreter_json_mode=args.interpreter_json_mode,
+        interpreter_timeout_s=args.interpreter_timeout,
         host_name="claude-code",
         host_version=HOST_VERSION,
     )

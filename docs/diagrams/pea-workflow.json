@@ -1,0 +1,348 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Patristic Ethics Agent — one-turn workflow",
+    "output": "pea-workflow.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "one-turn",
+        "label": "One reviewed turn",
+        "focus": [
+          "turn",
+          "envelope",
+          "safety",
+          "interpreter",
+          "policy",
+          "guidance",
+          "apply"
+        ],
+        "note": "From host input to a released action: validate, screen, interpret, decide, compose, then hand the action back."
+      },
+      {
+        "id": "stop-paths",
+        "label": "Stop paths",
+        "focus": [
+          "safety",
+          "refuse",
+          "interpreter",
+          "withhold",
+          "guidance"
+        ],
+        "note": "Non-overridable harm refuses before the model; operational failure and bad citations withhold instead of guessing."
+      },
+      {
+        "id": "evidence-review",
+        "label": "Evidence and review",
+        "focus": [
+          "guidance",
+          "corpus",
+          "runtime"
+        ],
+        "note": "Only quotes that verify against the corpus are cited; pending reviews and event audit live in the operator-owned store."
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "host",
+      "label": "Host surface"
+    },
+    {
+      "id": "gate",
+      "label": "PEA assessment"
+    },
+    {
+      "id": "exception",
+      "label": "Evidence, stop + review",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "intake",
+      "label": "Intake",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "judge",
+      "label": "Screen + interpret",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "decide",
+      "label": "Decide",
+      "fromCol": 4,
+      "toCol": 4
+    },
+    {
+      "id": "release",
+      "label": "Compose + release",
+      "fromCol": 5,
+      "toCol": 5,
+      "variant": "dashed"
+    }
+  ],
+  "mainPath": [
+    "turn",
+    "envelope",
+    "safety",
+    "interpreter",
+    "policy",
+    "guidance",
+    "apply"
+  ],
+  "semanticChecks": {
+    "allowedRoots": [
+      "turn"
+    ],
+    "allowedTerminals": [
+      "apply",
+      "refuse",
+      "withhold",
+      "runtime",
+      "corpus"
+    ],
+    "requiredEdges": [
+      {
+        "from": "safety",
+        "to": "refuse"
+      },
+      {
+        "from": "interpreter",
+        "to": "withhold"
+      },
+      {
+        "from": "guidance",
+        "to": "corpus"
+      },
+      {
+        "from": "policy",
+        "to": "runtime"
+      },
+      {
+        "from": "guidance",
+        "to": "apply"
+      },
+      {
+        "from": "guidance",
+        "to": "withhold"
+      }
+    ],
+    "requiredPaths": [
+      {
+        "from": "turn",
+        "to": "apply"
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "turn",
+      "lane": "host",
+      "col": 0,
+      "type": "external",
+      "label": "Host turn",
+      "sublabel": "input · pre-action · output",
+      "tag": "untrusted text",
+      "width": 120
+    },
+    {
+      "id": "apply",
+      "lane": "host",
+      "col": 5,
+      "type": "frontend",
+      "label": "Host applies",
+      "sublabel": "proceed · guide · stop",
+      "tag": "adapter owns it",
+      "width": 120
+    },
+    {
+      "id": "envelope",
+      "lane": "gate",
+      "col": 1,
+      "type": "backend",
+      "label": "Envelope",
+      "sublabel": "validate + trust split",
+      "tag": "schema v1"
+    },
+    {
+      "id": "safety",
+      "lane": "gate",
+      "col": 2,
+      "type": "security",
+      "label": "P01–P03 net",
+      "sublabel": "lexical, before model",
+      "tag": "non-overridable"
+    },
+    {
+      "id": "interpreter",
+      "lane": "gate",
+      "col": 3,
+      "type": "cloud",
+      "label": "Interpreter",
+      "sublabel": "Observation + evidence",
+      "tag": "no tools"
+    },
+    {
+      "id": "policy",
+      "lane": "gate",
+      "col": 4,
+      "type": "security",
+      "label": "Policy",
+      "sublabel": "signals + frozen order",
+      "tag": "refuse → … → allow"
+    },
+    {
+      "id": "guidance",
+      "lane": "gate",
+      "col": 5,
+      "type": "backend",
+      "label": "Guidance + check",
+      "sublabel": "compose · verify quotes",
+      "tag": "no fabrication",
+      "width": 120
+    },
+    {
+      "id": "refuse",
+      "lane": "exception",
+      "col": 2,
+      "type": "security",
+      "label": "Refuse",
+      "sublabel": "explicit harm",
+      "tag": "no review path"
+    },
+    {
+      "id": "withhold",
+      "lane": "exception",
+      "col": 3,
+      "type": "security",
+      "label": "Clarify / withhold",
+      "sublabel": "failure or bad quote",
+      "tag": "fail closed",
+      "width": 140
+    },
+    {
+      "id": "runtime",
+      "lane": "exception",
+      "col": 4,
+      "type": "database",
+      "label": "Review + audit",
+      "sublabel": "runtime.db",
+      "tag": "operator-owned",
+      "width": 120
+    },
+    {
+      "id": "corpus",
+      "lane": "exception",
+      "col": 5,
+      "type": "database",
+      "label": "Corpus index",
+      "sublabel": "units.db · FTS5",
+      "tag": "read-only",
+      "width": 120
+    }
+  ],
+  "edges": [
+    {
+      "id": "turn-envelope",
+      "from": "turn",
+      "to": "envelope",
+      "label": "turn data",
+      "variant": "emphasis"
+    },
+    {
+      "id": "envelope-safety",
+      "from": "envelope",
+      "to": "safety",
+      "label": "validated"
+    },
+    {
+      "id": "safety-interpreter",
+      "from": "safety",
+      "to": "interpreter",
+      "variant": "emphasis"
+    },
+    {
+      "id": "interpreter-policy",
+      "from": "interpreter",
+      "to": "policy",
+      "variant": "emphasis"
+    },
+    {
+      "id": "policy-guidance",
+      "from": "policy",
+      "to": "guidance",
+      "variant": "emphasis"
+    },
+    {
+      "id": "guidance-apply",
+      "from": "guidance",
+      "to": "apply",
+      "label": "released",
+      "variant": "emphasis"
+    },
+    {
+      "id": "safety-refuse",
+      "from": "safety",
+      "to": "refuse",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "interpreter-withhold",
+      "from": "interpreter",
+      "to": "withhold",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "guidance-corpus",
+      "from": "guidance",
+      "to": "corpus",
+      "label": "verify",
+      "variant": "dashed",
+      "role": "main"
+    },
+    {
+      "id": "policy-runtime",
+      "from": "policy",
+      "to": "runtime",
+      "label": "review",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "id": "guidance-withhold",
+      "from": "guidance",
+      "to": "withhold",
+      "label": "bad quote",
+      "variant": "security",
+      "role": "error",
+      "fromSide": "right",
+      "toSide": "bottom",
+      "via": [
+        [
+          890,
+          246
+        ],
+        [
+          890,
+          440
+        ],
+        [
+          505.2,
+          440
+        ]
+      ],
+      "labelAt": [
+        700,
+        440
+      ]
+    }
+  ]
+}

@@ -1,10 +1,12 @@
 # PDFs (paper sources are fetched, not versioned)
 *.pdf
 
-# Dot files and directories (except the ignore files themselves)
+# Dot files and directories (except public project files)
 .*
 !.gitignore
 !.ignore
+!.github/
+!/.github/**
 
 # Python
 __pycache__/
@@ -35,10 +37,45 @@ desktop.ini
 codex-session-*.md
 opencode-session-*.md
 
-# Corpus index is a build artifact: `uv run pea corpus build corpus/seed.jsonl`
-# (tests/conftest.py rebuilds it on demand)
-corpus/units.db
+# Local secrets, credentials, and operator state
+.env
+.env.*
+.npmrc
+.pypirc
+.netrc
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.sqlite
+*.sqlite3
+*.log
+.aws/
+.codex/
+.agents/
+.omx/
+.pi/
+.slim/
+.archify/
+
+# Third-party source files are fetched, not redistributed
+source/
+*.db.tmp
+
+# Corpus indexes are build artifacts:
+# `uv run pea corpus build corpus/seed.jsonl`
+# `uv run pea corpus build-csl corpus/modern.jsonl --lane modern`
+# `uv run pea corpus build-csl corpus/scripture.jsonl --lane scripture`
+corpus/*.db
+
+# CiteIndex ingestion logs are local artifacts
+logs/
 
 # BEGIN oh-my-opencode-slim clonedeps
 .slim/clonedeps/repos/
 # END oh-my-opencode-slim clonedeps
+
+# npm packaging artifacts
+*.tgz
+node_modules/

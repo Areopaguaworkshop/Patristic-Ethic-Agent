@@ -1,6 +1,6 @@
 [project]
 name = "patristic-ethics"
-version = "0.0.1"
+version = "0.0.3"
 description = "PEA (Patristic Ethics Agent) - a runtime ethics layer for LLM agent hosts"
 readme = "README.md"
 license = "Apache-2.0"

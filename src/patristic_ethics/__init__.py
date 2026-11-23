@@ -5,4 +5,4 @@ with OpenCode as the first host. See docs/host-coverage.md for the
 capability record and tests/fixtures/opencode_probe for the probe assets.
 """
 
-__version__ = "0.0.1"
+__version__ = "0.0.3"

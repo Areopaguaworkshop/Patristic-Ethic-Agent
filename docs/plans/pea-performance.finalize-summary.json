@@ -7,13 +7,13 @@
   "quality": "showcase",
   "specification": {
     "path": "/home/ajia/Projects/EthicAgent/docs/plans/pea-performance.archify.md",
-    "sha256": "9222f203a13e501b974a7e2e77fc2f5008f4fc1e97fa4b4177c7adb18dc7b915",
-    "bytes": 3521
+    "sha256": "a96fb0258afce1a4a5ac5cb75d03a35014ac9b85d9be780fcb645056430f4f62",
+    "bytes": 3640
   },
   "artifact": {
     "path": "/home/ajia/Projects/EthicAgent/docs/plans/pea-performance.html",
-    "sha256": "18a6bbedf240aaa7a63e2384e0de5cd0540fbbbf23435dbeb2e2ec9586fb9f5f",
-    "bytes": 150893
+    "sha256": "991ef096d83bb537f3507c3bed2beb82ae74f69399f013c321a5bd8e321a7a03",
+    "bytes": 152487
   },
   "gates": {
     "validate": "pass",
@@ -22,6 +22,27 @@
     "browser-check": "not-run"
   },
   "diagnostics": [
+    {
+      "code": "explainer/writing-sentence-length",
+      "severity": "warning",
+      "message": "Sentence has 43 reading units, above the configured en limit of 28.",
+      "subject": {
+        "input": "/home/ajia/Projects/EthicAgent/docs/plans/pea-performance.archify.md",
+        "line": 16,
+        "component": "comparison",
+        "panelId": "progress"
+      },
+      "evidence": {
+        "reason": "Sentence has 43 reading units, above the configured en limit of 28.",
+        "example": "先查缓存。未命中时再查数据库。 / Check the cache first. Query the database on a miss.",
+        "rule": "sentence-length",
+        "units": 43,
+        "limit": 28
+      },
+      "supportedFixes": [
+        "Split at a logical action or condition boundary while preserving qualifications and causal links."
+      ]
+    },
     {
       "code": "explainer/writing-paragraph-length",
       "severity": "warning",
@@ -45,8 +66,8 @@
     }
   ],
   "diagnosticSummary": {
-    "total": 1,
-    "shown": 1,
+    "total": 2,
+    "shown": 2,
     "truncated": false
   },
   "evidence": {
@@ -54,7 +75,7 @@
     "summaryReceipt": "/home/ajia/Projects/EthicAgent/docs/plans/pea-performance.finalize-summary.json"
   },
   "visualReview": "not-requested",
-  "durationMs": 6158,
+  "durationMs": 6236,
   "browserCheck": {
     "requested": false,
     "ran": false

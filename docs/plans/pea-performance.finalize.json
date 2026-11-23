@@ -5,16 +5,16 @@
   "status": "pass",
   "type": "explainer",
   "quality": "showcase",
-  "startedAt": "2026-11-23T23:03:07.757Z",
+  "startedAt": "2026-11-23T23:16:45.624Z",
   "specification": {
     "path": "/home/ajia/Projects/EthicAgent/docs/plans/pea-performance.archify.md",
-    "sha256": "9222f203a13e501b974a7e2e77fc2f5008f4fc1e97fa4b4177c7adb18dc7b915",
-    "bytes": 3521
+    "sha256": "a96fb0258afce1a4a5ac5cb75d03a35014ac9b85d9be780fcb645056430f4f62",
+    "bytes": 3640
   },
   "artifact": {
     "path": "/home/ajia/Projects/EthicAgent/docs/plans/pea-performance.html",
-    "sha256": "18a6bbedf240aaa7a63e2384e0de5cd0540fbbbf23435dbeb2e2ec9586fb9f5f",
-    "bytes": 150893
+    "sha256": "991ef096d83bb537f3507c3bed2beb82ae74f69399f013c321a5bd8e321a7a03",
+    "bytes": 152487
   },
   "stages": {
     "browser-check": {
@@ -44,8 +44,8 @@
         "ok": true,
         "command": "validate",
         "specification": {
-          "sha256": "9222f203a13e501b974a7e2e77fc2f5008f4fc1e97fa4b4177c7adb18dc7b915",
-          "bytes": 3521
+          "sha256": "a96fb0258afce1a4a5ac5cb75d03a35014ac9b85d9be780fcb645056430f4f62",
+          "bytes": 3640
         },
         "validation": {
           "checksPassed": 4,
@@ -60,7 +60,7 @@
     "deliver": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 3832,
+      "durationMs": 3641,
       "command": [
         "/usr/bin/node",
         "/home/ajia/Projects/ajiaskill/skills/archify/bin/archify.mjs",
@@ -76,23 +76,23 @@
       ],
       "receipt": {
         "schemaVersion": 1,
-        "receiptId": "a8e7c944-9e35-4e84-8f56-f10e1e019aae",
+        "receiptId": "06fec303-bc71-4b26-b487-8e1b27c0ae44",
         "ok": true,
         "command": "deliver",
         "type": "explainer",
         "input": "/home/ajia/Projects/EthicAgent/docs/plans/pea-performance.archify.md",
         "output": "/home/ajia/Projects/EthicAgent/docs/plans/pea-performance.html",
         "explainer": {
-          "preparedSha256": "4bc7dfc893ee5bf72d5e0701e86e667b3abf518922853462ba03ffbad56f3ed2",
+          "preparedSha256": "5a3be01cc787d71149ee354d4810372e6c20dec8aaa820fc1800892854f999ce",
           "dependencies": []
         },
         "specification": {
-          "sha256": "9222f203a13e501b974a7e2e77fc2f5008f4fc1e97fa4b4177c7adb18dc7b915",
-          "bytes": 3521
+          "sha256": "a96fb0258afce1a4a5ac5cb75d03a35014ac9b85d9be780fcb645056430f4f62",
+          "bytes": 3640
         },
         "artifact": {
-          "sha256": "18a6bbedf240aaa7a63e2384e0de5cd0540fbbbf23435dbeb2e2ec9586fb9f5f",
-          "bytes": 150893
+          "sha256": "991ef096d83bb537f3507c3bed2beb82ae74f69399f013c321a5bd8e321a7a03",
+          "bytes": 152487
         },
         "validation": {
           "checksPassed": 4,
@@ -103,6 +103,27 @@
           "warnings": 0
         },
         "diagnostics": [
+          {
+            "code": "explainer/writing-sentence-length",
+            "severity": "warning",
+            "message": "Sentence has 43 reading units, above the configured en limit of 28.",
+            "subject": {
+              "line": 16,
+              "component": "comparison",
+              "panelId": "progress",
+              "input": "/home/ajia/Projects/EthicAgent/docs/plans/pea-performance.archify.md"
+            },
+            "evidence": {
+              "rule": "sentence-length",
+              "reason": "Sentence has 43 reading units, above the configured en limit of 28.",
+              "example": "先查缓存。未命中时再查数据库。 / Check the cache first. Query the database on a miss.",
+              "units": 43,
+              "limit": 28
+            },
+            "supportedFixes": [
+              "Split at a logical action or condition boundary while preserving qualifications and causal links."
+            ]
+          },
           {
             "code": "explainer/writing-paragraph-length",
             "severity": "warning",
@@ -137,12 +158,12 @@
           "reason": "disabled"
         }
       },
-      "stderr": "archify: This paragraph has 6 sentences and 77 reading units; long paragraphs are what the page should replace."
+      "stderr": "archify: Sentence has 43 reading units, above the configured en limit of 28.\narchify: This paragraph has 6 sentences and 77 reading units; long paragraphs are what the page should replace."
     },
     "check": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 1466,
+      "durationMs": 1700,
       "command": [
         "/usr/bin/node",
         "/home/ajia/Projects/ajiaskill/skills/archify/bin/archify.mjs",
@@ -155,8 +176,8 @@
         "file": "/home/ajia/Projects/EthicAgent/docs/plans/pea-performance.html",
         "family": "explainer",
         "artifact": {
-          "sha256": "18a6bbedf240aaa7a63e2384e0de5cd0540fbbbf23435dbeb2e2ec9586fb9f5f",
-          "bytes": 150893
+          "sha256": "991ef096d83bb537f3507c3bed2beb82ae74f69399f013c321a5bd8e321a7a03",
+          "bytes": 152487
         },
         "checks": [
           {
@@ -197,7 +218,7 @@
         },
         "diagnostics": [],
         "provenance": "current",
-        "deliveryReceiptId": "a8e7c944-9e35-4e84-8f56-f10e1e019aae"
+        "deliveryReceiptId": "06fec303-bc71-4b26-b487-8e1b27c0ae44"
       }
     }
   },
@@ -206,6 +227,27 @@
     "ran": false
   },
   "diagnostics": [
+    {
+      "code": "explainer/writing-sentence-length",
+      "severity": "warning",
+      "message": "Sentence has 43 reading units, above the configured en limit of 28.",
+      "subject": {
+        "input": "/home/ajia/Projects/EthicAgent/docs/plans/pea-performance.archify.md",
+        "line": 16,
+        "component": "comparison",
+        "panelId": "progress"
+      },
+      "evidence": {
+        "reason": "Sentence has 43 reading units, above the configured en limit of 28.",
+        "example": "先查缓存。未命中时再查数据库。 / Check the cache first. Query the database on a miss.",
+        "rule": "sentence-length",
+        "units": 43,
+        "limit": 28
+      },
+      "supportedFixes": [
+        "Split at a logical action or condition boundary while preserving qualifications and causal links."
+      ]
+    },
     {
       "code": "explainer/writing-paragraph-length",
       "severity": "warning",
@@ -233,8 +275,8 @@
     "summaryReceipt": "/home/ajia/Projects/EthicAgent/docs/plans/pea-performance.finalize-summary.json"
   },
   "visualReview": "not-requested",
-  "finishedAt": "2026-11-23T23:03:13.915Z",
-  "durationMs": 6158,
+  "finishedAt": "2026-11-23T23:16:51.860Z",
+  "durationMs": 6236,
   "update": {
     "status": "unavailable",
     "installedVersion": null,

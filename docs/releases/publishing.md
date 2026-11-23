@@ -1,12 +1,12 @@
 # Publishing PEA
 
-PyPI and npm both list 0.0.1 as the latest version as of 2026-11-23.
-Prepare a new version after the acceptance gates pass and verify that its
-version is unused on both registries. Registry credentials are required.
+PyPI and npm both list 0.0.1 as the latest published version as of
+2026-11-23. `0.0.3` is prepared and unused on both registries; publishing
+remains blocked by the acceptance gates. Registry credentials are required.
 
 The first public version is 0.0.1. The 0.0.2 artifacts belong to the
-historical experimental review. Use 0.0.3 or a later unused version for
-the next release.
+historical experimental review. The prepared release candidate is 0.0.3;
+use it or a later unused version when the gates pass.
 
 ## Names
 
@@ -50,6 +50,7 @@ which proves the sdist is complete.
 ## Evidence before publish
 
 - Pre-publish review: `docs/reviews/2026-11-03-package-publish-review-0.0.1.md`.
+- 0.0.3 candidate rehearsal: `docs/releases/pea-0.0.3-rehearsal.md`.
 - `uvx twine check` passes the 0.0.1 wheel and sdist.
 - The secret scan was last run against 0.0.2. Rerun it against the 0.0.1
   artifacts before upload.
@@ -125,3 +126,13 @@ in these artifacts.
 The rehearsal used the checkout's existing version metadata. Once the
 release gates pass, repeat these checks from the release commit with the
 new version before publishing.
+
+### 0.0.3 candidate — 2026-11-23
+
+The version was bumped to `0.0.3`. The wheel and sdist bundle the 13
+Scripture records, the clean-room install exposes all seven scripts and a
+four-tool MCP handshake, Twine passes both archives, the npm launcher's five
+tests pass and its tarball contains four files, the secret scan is clean,
+and the 123-file freeze verifies. Nothing was published: no PyPI token was
+set and npm was not authenticated. See
+[the rehearsal report](pea-0.0.3-rehearsal.md).

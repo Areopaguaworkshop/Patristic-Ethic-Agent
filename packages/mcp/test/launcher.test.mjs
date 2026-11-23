@@ -19,7 +19,7 @@ function run(env) {
 test("prints its version", () => {
   const result = run({});
   assert.equal(result.status, 0);
-  assert.match(result.stdout, /^0\.0\.1/);
+  assert.match(result.stdout, /^0\.0\.3/);
 });
 
 test("dry run plans uvx by default", () => {

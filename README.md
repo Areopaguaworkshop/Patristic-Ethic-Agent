@@ -6,7 +6,7 @@ PEA is an experimental dialogue/action review layer grounded in an owner-approve
 
 ## Packages
 
-The 0.0.1 packaging is implemented and reviewed; nothing has been published yet.
+0.0.1 is published on PyPI and npm. The next candidate is 0.0.3; it is not published.
 
 | Registry | Package |
 |---|---|

@@ -31,7 +31,7 @@ and speaks the Claude Code hook-protocol JSON on stdout.
 
 `pea-controlled-claude` launches Claude Code print mode and buffers its
 complete JSON result before PEA assesses it. It passes `--safe-mode`,
-`--tools ""`, `--strict-mcp-config --mcp-config "{}"`, and
+`--tools ""`, `--strict-mcp-config --mcp-config '{"mcpServers": {}}'`, and
 `--no-session-persistence`: built-in tools, MCP servers, non-managed hooks/plugins and
 on-disk candidate sessions are disabled for this path (managed policy
 settings may still apply). A failed process,

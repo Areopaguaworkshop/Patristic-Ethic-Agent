@@ -21,7 +21,7 @@ Every trial starts fresh. Fixture assistant messages are fixed across conditions
 
 The report records per-condition trial counts, generation calls, failed trials, total pipeline p50/p95 latency, per-call generation and assessment token counts, candidate/released response, PEA assessment/action traces, and null human grades. File hashes identify the case set, constitution, policy and corpus snapshot; model/settings/version metadata are also recorded. Expected labels are never sent to the generator. A generation outage and an assessor outage are operational failures, not successful ethical recognition. Raw/guided outputs have no inferred disposition, refusal recall or task completion score.
 
-Case/input validation and data hashing precede backend construction. Held-out-labelled filenames use the same owner-attested, hash-locked eligibility gate as `eval/run.py`; the comparison command neither fabricates a holdout nor grants release status.
+Case/input validation and data hashing precede backend construction. Pass `--holdout base` or `--holdout ambiguity` to explicitly require review validation, regardless of the case filename. Held-out-labelled filenames also use the same owner-attested, hash-locked eligibility gate as `eval/run.py`; the comparison command neither fabricates a holdout nor grants release status.
 
 ## Review and evidence
 
@@ -36,3 +36,67 @@ Validation: 54 comparison/harness/controlled-client tests pass. The offline deve
 ### Runtime interpreter controls
 
 The assessment CLI accepts `--context-length 4096 --thinking off` on its `assess` subcommand. The OpenCode and Claude controlled clients accept `--interpreter-context-length 4096 --interpreter-thinking off`. These controlled-client flags configure only the PEA Ollama interpreter, not the host generator. Thinking choices are `model-default`, `on`, and `off`; omitted context length and `model-default` preserve Ollama model defaults. Context length must be a positive integer. These are optional tuning controls, not evidence that the local latency or live evidence-generation failures are resolved. Native hooks, MCP server, proxy and the original assessment-only evaluation harness retain their existing configuration paths.
+
+## Benign multi-turn regression and stage timings
+
+Each full PEA assessment now reports its total latency and the timings for
+the stages it reached. Interpretation includes evidence validation, including
+failed validation. The report also records retrieval, citation verification,
+and the output check when they run. In a fast refusal, the safety-precheck
+timing includes the work performed inside that path.
+
+The November 23 development run used a synthetic Python docstring
+continuation and DeepSeek V4.1 Flash through Ollama Cloud. All three full
+PEA trials released their draft. End-to-end time ranged from 3.85 to 5.19
+seconds. Across the six input and output assessments, interpretation took
+1.50 to 2.97 seconds and retrieval took 5.96 to 14.68 milliseconds.
+[Scenario](artifacts/pea-benign-continuation.jsonl) ·
+[Timing record](artifacts/pea-benign-continuation-timings.json)
+
+The offline regression exercises the recorded missing-evidence error class
+on a benign continuation. It verifies that the controlled client withholds
+when a structured observation lacks evidence and releases when the
+observation cites the draft correctly. The live trials used the synthetic
+fixture and a different backend tag from the historical run. Release-level
+latency and task completion still require the independent evaluation.
+
+### Passage provenance for grounding review
+
+For each assessment that composes guidance, the comparison report records
+the ordered citation IDs, source classes, editions, loci, URLs, editorial
+status, and the guidance's source status. These are the passages PEA made
+available at that assessment stage. Reviewers can use their IDs to check
+text and context against the corpus snapshot. A listed passage alone does
+not establish that the released answer cites it or that it supports the
+answer. The blinded response packet keeps this metadata out of first-pass
+scoring. After scores close, the coordinator can use the original report
+to investigate misses and citation disagreements.
+
+The performance development profile can freeze a reproducible set of
+review inputs. The snapshot hashes the checkout corpus, the packaged
+corpus database, and the canonical Scripture JSONL independently. The
+comparison report also identifies the exact corpus and Scripture inputs
+used for each run.
+
+```sh
+.venv/bin/python eval/freeze.py \
+  --profile docs/releases/pea-performance-experimental-profile.json \
+  --output /tmp/pea-performance-snapshot.json
+.venv/bin/python eval/freeze.py --verify /tmp/pea-performance-snapshot.json
+```
+
+Build `corpus/units.db` from the seed before freezing a clean checkout.
+Use a new output path for every freeze so prior evidence stays intact.
+
+A reviewed scenario can include `reference_passage_ids` with unique corpus
+unit IDs selected by a reviewer before seeing model responses. The
+comparison reports matches and misses against the final assessment's
+verified citations. Its full-PEA summary reports labeled trials, trials
+with at least one match, and recall across all supplied reference IDs.
+Unlabeled cases stay out of the denominator. Reference IDs are also kept
+out of model prompts and blinded packets.
+
+This measures coverage of reviewer-selected references in PEA's final
+citation selection. Its scope includes retrieval and citation filtering.
+After blind scoring, the relevance judgments measure whether the selected
+passages actually support the answer. Use both measurements together.

@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "id": "pea-performance-development-2026-11-23",
+  "package_version": "0.0.1",
+  "status": "experimental",
+  "release_ready": false,
+  "evidence": [
+    {"path": "docs/plans/pea-performance.archify.md", "scope": "Implementation status and open gates"},
+    {"path": "docs/evaluation/artifacts/pea-benign-continuation.jsonl", "scope": "Synthetic development scenario"},
+    {"path": "docs/evaluation/artifacts/pea-benign-continuation-timings.json", "scope": "Historical live timings on that scenario before the Scripture-first changes"},
+    {"path": "docs/evaluation/host-conformance.md", "scope": "Native adapter fixtures, installed-host probes, and remaining live gaps"},
+    {"path": "docs/evaluation/human-grading.md", "scope": "Blinded review procedure, independent judgments pending"},
+    {"path": "docs/operator-boundary.md", "scope": "Disposable namespace evidence, production mediation pending"},
+    {"path": "docs/releases/publishing.md", "scope": "Local package rehearsal and publication procedure"}
+  ]
+}

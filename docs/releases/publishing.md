@@ -1,10 +1,12 @@
-# Publishing PEA 0.0.1
+# Publishing PEA
 
-Status: one PyPI package and one npm package are built and smoke-tested
-locally. Nothing has been published. Registry credentials are required.
+PyPI and npm both list 0.0.1 as the latest version as of 2026-11-23.
+Prepare a new version after the acceptance gates pass and verify that its
+version is unused on both registries. Registry credentials are required.
 
-The first public version is 0.0.1. The 0.0.2 review record is historical; the
-0.0.2 artifacts must not be published.
+The first public version is 0.0.1. The 0.0.2 artifacts belong to the
+historical experimental review. Use 0.0.3 or a later unused version for
+the next release.
 
 ## Names
 
@@ -14,8 +16,7 @@ The first public version is 0.0.1. The 0.0.2 review record is historical; the
 | npm | `pea-mcp` | thin MCP stdio launcher |
 
 The npm package is unscoped because the project does not own the `@pea` npm
-scope. Both names returned 404 on the public registries on 2026-10-24. Register
-them as soon as possible to prevent name squatting.
+scope.
 
 Host adapters are not published to npm:
 
@@ -30,18 +31,19 @@ Host adapters are not published to npm:
 ```sh
 uv build
 
-rm -rf /tmp/pea-wheel-venv
-uv venv /tmp/pea-wheel-venv
-uv pip install --python /tmp/pea-wheel-venv/bin/python dist/patristic_ethics-0.0.1-py3-none-any.whl
-timeout 2 /tmp/pea-wheel-venv/bin/pea-mcp      # exit 124 means the stdio server started
+pea_version=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+pea_rehearsal=$(mktemp -d /tmp/pea-wheel-venv.XXXXXX)
+uv venv "$pea_rehearsal"
+uv pip install --python "$pea_rehearsal/bin/python" "dist/patristic_ethics-${pea_version}-py3-none-any.whl"
+timeout 2 "$pea_rehearsal/bin/pea-mcp"   # check the installed stdio entry point
 
 cd packages/mcp
 npm test
 npm pack --dry-run
 ```
 
-The source distribution uses an explicit include allowlist (`src`, `README.md`,
-`LICENSE`, `pyproject.toml`). It must not include `.slim/clonedeps`, editor
+The source distribution uses an explicit include allowlist (`src`,
+`corpus/scripture.jsonl`, `README.md`, `LICENSE`, `pyproject.toml`). It must not include `.slim/clonedeps`, editor
 state, artifacts, or adapter files. `uv build` builds the wheel from the sdist,
 which proves the sdist is complete.
 
@@ -59,11 +61,12 @@ which proves the sdist is complete.
 ## Publish PyPI first
 
 ```sh
-# API token in the environment; never commit it or pass it in a shell that logs
-uv publish --token "$PYPI_TOKEN" dist/patristic_ethics-0.0.1*
+# Provide UV_PUBLISH_TOKEN through the release environment.
+uv publish "dist/patristic_ethics-${pea_version}-py3-none-any.whl" \
+  "dist/patristic_ethics-${pea_version}.tar.gz"
 ```
 
-Alternative: `UV_PUBLISH_TOKEN` with `uv publish`, or `twine upload`.
+Alternatively, use the configured trusted publisher or `twine upload`.
 
 Order matters: `npx pea-mcp` resolves the Python package through `uvx --from
 patristic-ethics`, so PyPI must be live first.
@@ -105,3 +108,20 @@ Publishing is distribution, not ethical release. Keep `0.0.1` experimental. The
 policy is approved; the corpus, host acceptance, holdout, independent grades, and
 release gates remain partial. Do not claim a qualified release or OS operator
 isolation.
+
+## Performance branch rehearsal — 2026-11-23
+
+The branch built a source distribution and a wheel from that distribution.
+A fresh virtual environment outside the checkout installed the wheel, found
+all seven console entry points, and validated 13 bundled Scripture records.
+The installed Python entry point and the packed npm launcher both completed
+an MCP handshake and listed all four tools. The launcher used its explicit
+Python fallback with the rehearsed wheel. The five npm launcher tests and
+Twine metadata checks for both Python archives passed. Archive inspection
+confirmed the bundled corpus and the four expected npm tarball files. A
+pattern scan for common registry, API, and private-key markers found none
+in these artifacts.
+
+The rehearsal used the checkout's existing version metadata. Once the
+release gates pass, repeat these checks from the release commit with the
+new version before publishing.

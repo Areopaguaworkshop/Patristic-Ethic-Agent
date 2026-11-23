@@ -106,3 +106,27 @@ Inspect unresolved attempts without retrying them:
 ```
 
 `attempts` includes every unresolved attempt immediately, with its review/session ID and claim time. It does not reset state or dispatch. An `attempted` record can mean no effect, a completed effect with a lost reply, or a failed completion record. Establish the external outcome before deciding whether a new reviewed action is safe. A repeated proxy call may open a new pending review; it never automatically approves it or reuses the consumed approval. New proxy processes have new session IDs and cannot reuse old session approvals. Separate OS identity and credential/database isolation remain deployment requirements and are still unproven.
+
+## Disposable two-identity check — 2026-11-23
+
+Ran the probe in a Linux user namespace with the invoking account mapped to
+namespace root and UID/GID 1000 mapped to a subordinate identity. The
+unprivileged process had no supplementary groups and inherited no operator
+token. The kernel denied opening both the test credential and database for
+reading or writing. The operator CLI approved a benign local fixture. The
+store allowed one dispatch claim, rejected a second, and recorded completion.
+All state was temporary. The probe requires mapped subordinate IDs and an
+environment that permits user namespaces.
+
+```sh
+unshare --map-root-user --map-users=1000:100000:1 \
+  --map-groups=1000:100000:1 .venv/bin/python scripts/probe_operator_isolation.py
+```
+
+Replace the outer IDs with the start of your allocated subordinate UID and
+GID ranges. The OS permission result applies to this layout. Production
+still needs a trusted review service that owns the store and mediates the
+operations an agent may request. An MCP server running as the restricted
+agent reports a pending review disposition with no review ID if it cannot
+open the store. A shared writable SQLite file cannot provide operator
+isolation.

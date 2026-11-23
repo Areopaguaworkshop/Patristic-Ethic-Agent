@@ -1,0 +1,162 @@
+{
+  "generation_model": "deepseek-v4.1-flash:1017-cloud",
+  "assessment_model": "deepseek-v4.1-flash:1017-cloud",
+  "generation_options": {
+    "temperature": 0,
+    "num_predict": 1024,
+    "seed": 0
+  },
+  "assessment_options": {
+    "temperature": 0,
+    "num_predict": 2048,
+    "num_ctx": null
+  },
+  "timeout_s": 20.0,
+  "thinking": "model-default",
+  "cases_sha256": "1e37c6ecd5a1381576b0e94d84c039187b0c8434adf4f4dededf5eec4924df0c",
+  "constitution_sha256": "5b809a99e9fb04b7e31606ceced24bca1d9885740d53427a4187b46134654b07",
+  "policy_sha256": "c7fa972a4305a47798cd1a3e5e9c8ef7f7bcecf257080151646ed5352b9997be",
+  "corpus_sha256": "1bb8880c63b1139abe831cde492bf48163eba17436aa75392a2ccfb53c582291",
+  "condition_summaries": {
+    "raw": {
+      "trials": 3,
+      "generation_calls": 3,
+      "failed_trials": 0,
+      "latency_ms": {
+        "p50": 569.04,
+        "p95": 679.72
+      }
+    },
+    "constitution_guided": {
+      "trials": 3,
+      "generation_calls": 3,
+      "failed_trials": 0,
+      "latency_ms": {
+        "p50": 862.21,
+        "p95": 1185.88
+      }
+    },
+    "full_pea": {
+      "trials": 3,
+      "generation_calls": 3,
+      "failed_trials": 0,
+      "latency_ms": {
+        "p50": 4695.0,
+        "p95": 5190.18
+      }
+    }
+  },
+  "full_pea": [
+    {
+      "repeat": 1,
+      "pea_action": "proceed",
+      "failure": null,
+      "latency_ms": 4695.0,
+      "assessments": [
+        {
+          "stage": "input",
+          "action": "proceed",
+          "disposition": "allow",
+          "failure_kind": null,
+          "failure_reason": null,
+          "latency_ms": 1918.54,
+          "stage_latency_ms": {
+            "safety_precheck": 0.09,
+            "interpretation": 1910.48,
+            "retrieval": 6.17,
+            "citation_verification": 0.01
+          }
+        },
+        {
+          "stage": "output",
+          "action": "proceed",
+          "disposition": "allow",
+          "failure_kind": null,
+          "failure_reason": null,
+          "latency_ms": 2278.13,
+          "stage_latency_ms": {
+            "safety_precheck": 0.01,
+            "interpretation": 2264.21,
+            "retrieval": 9.83,
+            "citation_verification": 0.02,
+            "output_check": 2.44
+          }
+        }
+      ]
+    },
+    {
+      "repeat": 2,
+      "pea_action": "proceed",
+      "failure": null,
+      "latency_ms": 5190.18,
+      "assessments": [
+        {
+          "stage": "input",
+          "action": "proceed",
+          "disposition": "allow",
+          "failure_kind": null,
+          "failure_reason": null,
+          "latency_ms": 1658.51,
+          "stage_latency_ms": {
+            "safety_precheck": 0.03,
+            "interpretation": 1650.67,
+            "retrieval": 5.96,
+            "citation_verification": 0.01
+          }
+        },
+        {
+          "stage": "output",
+          "action": "proceed",
+          "disposition": "allow",
+          "failure_kind": null,
+          "failure_reason": null,
+          "latency_ms": 2986.17,
+          "stage_latency_ms": {
+            "safety_precheck": 0.01,
+            "interpretation": 2966.99,
+            "retrieval": 14.68,
+            "citation_verification": 0.01,
+            "output_check": 2.28
+          }
+        }
+      ]
+    },
+    {
+      "repeat": 3,
+      "pea_action": "proceed",
+      "failure": null,
+      "latency_ms": 3849.13,
+      "assessments": [
+        {
+          "stage": "input",
+          "action": "proceed",
+          "disposition": "allow",
+          "failure_kind": null,
+          "failure_reason": null,
+          "latency_ms": 1784.14,
+          "stage_latency_ms": {
+            "safety_precheck": 0.05,
+            "interpretation": 1767.66,
+            "retrieval": 14.52,
+            "citation_verification": 0.01
+          }
+        },
+        {
+          "stage": "output",
+          "action": "proceed",
+          "disposition": "allow",
+          "failure_kind": null,
+          "failure_reason": null,
+          "latency_ms": 1514.06,
+          "stage_latency_ms": {
+            "safety_precheck": 0.01,
+            "interpretation": 1502.93,
+            "retrieval": 7.6,
+            "citation_verification": 0.01,
+            "output_check": 2.03
+          }
+        }
+      ]
+    }
+  ]
+}

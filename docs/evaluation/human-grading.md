@@ -43,3 +43,46 @@ Joint grounding/care counts require applicable scores from both distinct reviewe
 The report embeds original per-response grades and disagreements, plus source-report and grades-file hashes. Keep the source report, grade file and graded report together. [The standing disagreement record](disagreements.md) tracks owner follow-up; do not silently replace source grades or reinterpret a tuned development run as untouched holdout evidence.
 
 An empty grade file is supported as a coverage check: every response stays ungraded, all numeric judgment rates remain null, and no release claim is produced. The original live smoke report was exercised this way in step 17; its judgments remain pending.
+
+## Blinded reviewer handoff
+
+Use the exact scenario file that generated the comparison report. Export a
+packet and a private key to new paths.
+
+```sh
+.venv/bin/python eval/blind.py --report artifacts/comparison.json \
+  --cases eval/scenarios.jsonl --packet artifacts/review-packet.jsonl \
+  --key artifacts/review-key.jsonl
+```
+
+Share the packet and rubric with the reviewers. Each packet record contains
+the conversation, released response, and a random review ID. The coordinator
+keeps the key and original report private until scoring closes. Reviewers
+return their judgments with `review_id` and the usual scores and reasons.
+The coordinator imports them after scoring closes:
+
+```sh
+.venv/bin/python eval/grade.py --report artifacts/comparison.json \
+  --grades artifacts/reviewer-grades.jsonl --blind-key artifacts/review-key.jsonl \
+  --output artifacts/reviewed-comparison.json
+```
+
+Export checks the scenario file digest. Import binds each review ID to
+its exact report and response and records the private key file digest.
+A response can reveal clues about its origin, so this blinds the metadata.
+Use an independently labeled scenario file for the release evaluation.
+
+## Passage relevance after blind scoring
+
+Once the first-pass scores are locked, content reviewers can add
+`passage_relevance` to their grade row. Map each assessed unit ID from the
+final assessment's citation trace to `true` if it supports the released
+answer and `false` if it does not. Leave unjudged IDs out. An input-only
+decision uses its input assessment as the final trace.
+
+The report counts selected and judged passages by source class. Support
+requires agreement among all submitted judgments for a passage. It
+reports mixed judgments separately and leaves the support rate null when
+no passages were judged. This is a measure of support among selected
+passages. Retrieval recall requires a separately reviewed set of relevant
+passages.

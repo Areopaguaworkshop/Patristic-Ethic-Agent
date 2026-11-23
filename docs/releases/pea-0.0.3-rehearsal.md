@@ -80,8 +80,8 @@ uv publish \
   "dist/patristic_ethics-0.0.3-py3-none-any.whl" \
   "dist/patristic_ethics-0.0.3.tar.gz"
 
-# 2. Verify the Python release
-uvx --from patristic-ethics pea-mcp --version
+# 2. Verify the Python release (the Python server has no --version flag)
+uvx --from 'patristic-ethics==0.0.3' python -c "import patristic_ethics; print(patristic_ethics.__version__)"
 
 # 3. npm (account with 2FA; local publish from the reviewed commit)
 cd packages/mcp
@@ -95,7 +95,18 @@ npx pea-mcp        # starts the MCP stdio server; Ctrl-C to stop
 ```
 
 Use `npm publish --provenance` from CI with OIDC. For a local publish, publish
-only from the clean release commit and tag it.
+only from the clean release commit and tag it. To rehearse the Python upload
+without touching the real index:
+
+```sh
+uv publish --publish-url https://test.pypi.org/legacy/ \
+  --token "$TEST_PYPI_TOKEN" \
+  dist/patristic_ethics-0.0.3-py3-none-any.whl \
+  dist/patristic_ethics-0.0.3.tar.gz
+```
+
+PyPI and npm versions are immutable. If an artifact is wrong after upload,
+fix it and publish a new version; do not attempt to reuse `0.0.3`.
 
 ## Current blockers
 

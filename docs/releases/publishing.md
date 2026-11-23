@@ -87,9 +87,13 @@ publish from a clean, reviewed commit and tag it.
 ## Verify after publish
 
 ```sh
+uvx --from 'patristic-ethics==0.0.3' python -c "import patristic_ethics; print(patristic_ethics.__version__)"
 npx pea-mcp --version
 npx pea-mcp        # starts the MCP stdio server; Ctrl-C to stop
 ```
+
+The Python MCP server itself has no `--version` flag; `pea-mcp --version` is
+the npm launcher's package version.
 
 Generic MCP host configuration: command `npx`, args `["pea-mcp"]`.
 

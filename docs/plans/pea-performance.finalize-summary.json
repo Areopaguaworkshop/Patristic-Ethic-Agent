@@ -7,13 +7,13 @@
   "quality": "showcase",
   "specification": {
     "path": "/home/ajia/Projects/EthicAgent/docs/plans/pea-performance.archify.md",
-    "sha256": "d3b5f491cdb5c8858b22c17edb17ab15e81910f0f86ef07c98bc96b56785373c",
-    "bytes": 2872
+    "sha256": "9222f203a13e501b974a7e2e77fc2f5008f4fc1e97fa4b4177c7adb18dc7b915",
+    "bytes": 3521
   },
   "artifact": {
     "path": "/home/ajia/Projects/EthicAgent/docs/plans/pea-performance.html",
-    "sha256": "b4cac6bbd188b8ab3bb0ec0b3e9155b39e435123a6ddb9c8ab787697596a2766",
-    "bytes": 146299
+    "sha256": "18a6bbedf240aaa7a63e2384e0de5cd0540fbbbf23435dbeb2e2ec9586fb9f5f",
+    "bytes": 150893
   },
   "gates": {
     "validate": "pass",
@@ -21,10 +21,32 @@
     "check": "pass",
     "browser-check": "not-run"
   },
-  "diagnostics": [],
+  "diagnostics": [
+    {
+      "code": "explainer/writing-paragraph-length",
+      "severity": "warning",
+      "message": "This paragraph has 6 sentences and 77 reading units; long paragraphs are what the page should replace.",
+      "subject": {
+        "input": "/home/ajia/Projects/EthicAgent/docs/plans/pea-performance.archify.md",
+        "line": 21,
+        "component": "prose",
+        "panelId": "baseline"
+      },
+      "evidence": {
+        "reason": "This paragraph has 6 sentences and 77 reading units; long paragraphs are what the page should replace.",
+        "example": "把并列要点写成列表，把先后动作写成 @steps，把方案差异写成对比表。 / Turn parallel points into a list, ordered actions into @steps and option differences into a comparison.",
+        "rule": "paragraph-length",
+        "units": 77,
+        "limit": 120
+      },
+      "supportedFixes": [
+        "Split the paragraph into a list, steps or a comparison; keep at most two or three short sentences of prose."
+      ]
+    }
+  ],
   "diagnosticSummary": {
-    "total": 0,
-    "shown": 0,
+    "total": 1,
+    "shown": 1,
     "truncated": false
   },
   "evidence": {
@@ -32,7 +54,7 @@
     "summaryReceipt": "/home/ajia/Projects/EthicAgent/docs/plans/pea-performance.finalize-summary.json"
   },
   "visualReview": "not-requested",
-  "durationMs": 5710,
+  "durationMs": 6158,
   "browserCheck": {
     "requested": false,
     "ran": false

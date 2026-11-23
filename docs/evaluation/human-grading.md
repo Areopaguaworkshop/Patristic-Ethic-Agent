@@ -72,6 +72,52 @@ its exact report and response and records the private key file digest.
 A response can reveal clues about its origin, so this blinds the metadata.
 Use an independently labeled scenario file for the release evaluation.
 
+## Live development baseline — 2026-11-23
+
+A live dev-set comparison and blinded packet now exist. This is development
+evidence, **not** a release claim: it uses the owner-labeled
+`eval/scenarios.jsonl`, one repeat, and no independent labels or grades.
+
+| Item | Value |
+|---|---|
+| Report | `artifacts/pea-comparison-2026-11-23-baseline.json` |
+| Report SHA-256 | `861a3dc0b73e91d66b6d2cff7123ab40b48701438a1138d7f155cb680b5cd279` |
+| Packet | `artifacts/pea-review-packet-2026-11-23.jsonl` (96 records, shuffled) |
+| Private key | `artifacts/pea-review-key-2026-11-23.jsonl` (keep private) |
+| Packet SHA-256 | `32255bf7b2829c6517876b364bc101dd01b10157bb1ee08e2dba4ae71ffe9936` |
+| Key SHA-256 | `23c59d587b88a047512897b7604303392d3041d34e2128f6c36ae3c7056c64fd` |
+
+These files are local and git-ignored because the report and packet may
+contain unsafe raw model text. Share the packet and rubric with reviewers;
+keep the key and report private until scoring closes.
+
+Generated with `deepseek-v4.1-flash:1017-cloud` through Ollama Cloud:
+32 scenarios × 3 conditions × 1 repeat = 96 records. Generation thinking is
+off; assessor thinking is `model-default` (`--assessment-thinking`). Raw and
+constitution-guided had 0 failures. Full PEA recorded 6 assessor schema failures
+(included in the 17 clarify outcomes), 6 proceed, 6 guide and 3 refuse. Full-PEA p50/p95 was 6.88 s / 15.07 s; raw was
+2.49 s / 4.10 s; guided was 1.94 s / 4.14 s.
+
+The empty-grade import was exercised against this report and key: 96 cases,
+0 graded, no release verdict. Reviewers should grade the visible response,
+including a clarification produced after an internal assessor failure; the
+packet does not reveal the failure or condition. Omit a record only when
+the visible response is unusable, and report why to the coordinator.
+
+Import after scoring closes:
+
+```sh
+.venv/bin/python eval/grade.py \
+  --report artifacts/pea-comparison-2026-11-23-baseline.json \
+  --grades artifacts/pea-reviewer-grades-2026-11-23.jsonl \
+  --blind-key artifacts/pea-review-key-2026-11-23.jsonl \
+  --output artifacts/pea-review-graded-2026-11-23.json
+```
+
+Do not reuse grades across reports: every grade binds to the report hash and
+the exact released-response hash. A new comparison requires a new packet and
+new judgments.
+
 ## Passage relevance after blind scoring
 
 Once the first-pass scores are locked, content reviewers can add

@@ -1,21 +1,21 @@
 {
   "schemaVersion": 1,
-  "receiptId": "330a2f65-599d-49cf-a7ad-8199d3cdf94a",
+  "receiptId": "a8e7c944-9e35-4e84-8f56-f10e1e019aae",
   "status": "current",
   "command": "deliver",
   "type": "explainer",
   "input": "/home/ajia/Projects/EthicAgent/docs/plans/pea-performance.archify.md",
   "output": "/home/ajia/Projects/EthicAgent/docs/plans/pea-performance.html",
   "specification": {
-    "sha256": "d3b5f491cdb5c8858b22c17edb17ab15e81910f0f86ef07c98bc96b56785373c",
-    "bytes": 2872
+    "sha256": "9222f203a13e501b974a7e2e77fc2f5008f4fc1e97fa4b4177c7adb18dc7b915",
+    "bytes": 3521
   },
   "artifact": {
-    "sha256": "b4cac6bbd188b8ab3bb0ec0b3e9155b39e435123a6ddb9c8ab787697596a2766",
-    "bytes": 146299
+    "sha256": "18a6bbedf240aaa7a63e2384e0de5cd0540fbbbf23435dbeb2e2ec9586fb9f5f",
+    "bytes": 150893
   },
   "explainer": {
-    "preparedSha256": "17dd13805b25bdcb970735e81848b28ca6000b6989dd4b0c109f3d5e44898c3b",
+    "preparedSha256": "4bc7dfc893ee5bf72d5e0701e86e667b3abf518922853462ba03ffbad56f3ed2",
     "dependencies": []
   }
 }

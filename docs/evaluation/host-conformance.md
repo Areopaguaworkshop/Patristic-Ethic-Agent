@@ -69,7 +69,7 @@ success/failure matrix on the deployment versions remain release checks.
   This verifies MCP delivery. Native hook delivery is now live-probed in
   the Codex section below.
 - **Repository regression suite.** With Bun enabled and loopback available,
-  604 tests passed and six were skipped (2026-11-23).
+  606 tests passed and six were skipped (2026-11-23).
 
 ### OpenCode 2.4.1 controlled path — 2026-11-23
 

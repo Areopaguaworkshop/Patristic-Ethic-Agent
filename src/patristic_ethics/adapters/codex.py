@@ -1,4 +1,4 @@
-"""PEA native Codex adapter (Codex CLI 0.160.0 hooks).
+"""PEA native Codex adapter (Codex CLI 0.171.0 hooks).
 
 Runs as a Codex hook command: reads ONE hook JSON payload from stdin,
 maps it to a ContextEnvelope, spawns the frozen PEA CLI
@@ -14,6 +14,8 @@ Documented limits of native Codex mode:
 - The transcript is NOT parsed: ``transcript_path`` is documented as NOT
   stable, so only configured hook-observed history is collected;
   ``history.complete`` remains false on Codex.
+- The hook payload has no Codex version field; the audit version is this
+  adapter's pinned default, not a host-reported value.
 - Enforcement is best-effort: there is no MessageDisplay event on Codex
   (no before-display guarantee), and host-level hook termination cannot
   be controlled by this process. Strict output guarantees require
@@ -32,7 +34,7 @@ from .history import collect, remember
 from .result import validate_result
 
 HOST_NAME = "codex"
-HOST_VERSION_DEFAULT = "0.160.0"
+HOST_VERSION_DEFAULT = "0.171.0"  # hook payloads carry no version field
 POLICY_VERSION = "0.1.0"
 CORPUS_VERSION = "0.1.0-draft"
 CLI_TIMEOUT_S = 15.0

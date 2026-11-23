@@ -140,7 +140,7 @@ def test_build_envelope_garbage_returns_none() -> None:
 
 def test_build_envelope_version_fallbacks() -> None:
     env = cx.build_envelope(prompt_payload())
-    assert env is not None and env["host"]["version"] == "0.160.0"
+    assert env is not None and env["host"]["version"] == "0.171.0"
     p = prompt_payload()
     p["codex_version"] = "0.161.0"
     env = cx.build_envelope(p)
@@ -348,6 +348,9 @@ def test_main_non_object_stdin_exit0(monkeypatch) -> None:
 
 def test_hooks_json_parses_and_wires_both_events() -> None:
     cfg = json.loads(HOOKS_JSON.read_text(encoding="utf-8"))
+    # Codex 0.171.0 rejects unknown top-level fields; `$schema` silently
+    # disables every hook in the file.
+    assert set(cfg) <= {"description", "hooks"}
     hooks = cfg["hooks"]
     assert "UserPromptSubmit" in hooks and "PreToolUse" in hooks
     for event in ("UserPromptSubmit", "PreToolUse"):

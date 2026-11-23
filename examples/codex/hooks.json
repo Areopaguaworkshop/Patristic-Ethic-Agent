@@ -1,5 +1,4 @@
 {
-  "$schema": "https://raw.githubusercontent.com/openai/codex/main/docs/hooks.schema.json",
   "hooks": {
     "UserPromptSubmit": [
       {

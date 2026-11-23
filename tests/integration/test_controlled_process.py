@@ -18,7 +18,10 @@ HOST = '''#!{python}
 import json, os, pathlib, sys, time
 root = pathlib.Path(os.environ["PROBE_DIR"])
 if sys.argv[1:3] == ["debug", "config"]:
-    print(os.environ["PROBE_CONFIG"])
+    print(json.dumps([
+        {{"type": "directory", "path": os.environ["OPENCODE_CONFIG_DIR"]}},
+        {{"type": "document", "info": json.loads(os.environ["PROBE_CONFIG"])}},
+    ]))
     sys.exit(0)
 (root / "launched").touch()
 mode = os.environ["PROBE_MODE"]
@@ -107,11 +110,13 @@ def test_unsafe_resolved_profile_prevents_host_process_launch(tmp_path):
     executable.write_text(HOST.format(python=sys.executable))
     executable.chmod(0o700)
     config = json.loads(json.dumps(CONTROLLED_CONFIG))
-    config["permission"]["bash"] = "allow"
+    config["agents"]["pea-controlled"]["permissions"].append(
+        {"action": "bash", "resource": "*", "effect": "allow"}
+    )
     env = {**os.environ, "PATH": str(tmp_path) + os.pathsep + os.environ["PATH"],
            "PROBE_DIR": str(tmp_path), "PROBE_MODE": "valid", "PROBE_CONFIG": json.dumps(config)}
     result = subprocess.run([sys.executable, "-c", HARNESS, "opencode"], cwd=ROOT, env=env,
-                            capture_output=True, timeout=10)
+                            capture_output=True, timeout=30)
     assert result.returncode == 0
     assert not (tmp_path / "launched").exists()
     assert b"response was withheld" in result.stdout

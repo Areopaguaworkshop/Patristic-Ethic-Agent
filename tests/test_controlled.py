@@ -100,21 +100,69 @@ def test_parse_host_stdout_rejects_mixed_session_ids():
     assert out.failure == "stdout contains multiple OpenCode sessions"
 
 
+def _profile_sources(config, config_dir="/tmp/pea-profile"):
+    return json.dumps(
+        [
+            {"type": "directory", "path": config_dir},
+            {"type": "document", "info": config},
+        ]
+    )
+
+
 def test_resolved_profile_must_deny_all_tools_and_mcp():
     safe = json.dumps(CONTROLLED_CONFIG)
-    assert controlled_profile_error(safe) is None
+    assert controlled_profile_error(_profile_sources(CONTROLLED_CONFIG), "/tmp/pea-profile") is None
 
     enabled = json.loads(safe)
-    enabled["permission"]["bash"] = "allow"
-    assert "not deny-all" in controlled_profile_error(json.dumps(enabled))
+    enabled["agents"]["pea-controlled"]["permissions"].append(
+        {"action": "bash", "resource": "*", "effect": "allow"}
+    )
+    assert "not deny-all" in controlled_profile_error(
+        _profile_sources(enabled), "/tmp/pea-profile"
+    )
 
     enabled = json.loads(safe)
-    enabled["agent"]["pea-controlled"]["tools"]["bash"] = True
-    assert "enables" in controlled_profile_error(json.dumps(enabled))
+    enabled["permissions"] = [{"action": "read", "resource": "*", "effect": "allow"}]
+    enabled["agents"]["pea-controlled"]["permissions"] = []
+    assert "not deny-all" in controlled_profile_error(
+        _profile_sources(enabled), "/tmp/pea-profile"
+    )
 
     enabled = json.loads(safe)
-    enabled["mcp"]["external"] = {"type": "local", "command": ["x"]}
-    assert "MCP servers" in controlled_profile_error(json.dumps(enabled))
+    enabled["mcp"]["servers"]["external"] = {"type": "local", "command": ["x"]}
+    assert "MCP servers" in controlled_profile_error(
+        _profile_sources(enabled), "/tmp/pea-profile"
+    )
+
+    enabled = json.loads(safe)
+    enabled["plugins"].append("external")
+    assert "plugins" in controlled_profile_error(
+        _profile_sources(enabled), "/tmp/pea-profile"
+    )
+
+    leaked = json.loads(_profile_sources(safe))
+    leaked.insert(0, {"type": "document", "path": "/home/user/.config/opencode/opencode.json", "info": {}})
+    assert "outside the controlled profile" in controlled_profile_error(
+        json.dumps(leaked), "/tmp/pea-profile"
+    )
+
+    wrong_dir = _profile_sources(safe, "/tmp/other-profile")
+    assert "outside the controlled profile" in controlled_profile_error(
+        wrong_dir, "/tmp/pea-profile"
+    )
+
+
+def test_parse_host_stdout_fails_on_error_event():
+    out = parse_host_stdout(
+        json.dumps(
+            {
+                "type": "error",
+                "error": {"type": "unknown", "message": 'Agent not found: "pea-controlled"'},
+            }
+        )
+    )
+    assert out.text == ""
+    assert "Agent not found" in out.failure
 
 
 def test_controlled_client_resumes_only_previously_released_turns():
@@ -202,32 +250,64 @@ def test_opencode_runner_forces_tools_off_over_inherited_config(monkeypatch):
     def fake_run(argv, **kwargs):
         commands.append(argv)
         captured.update(kwargs)
-        stdout = json.dumps(CONTROLLED_CONFIG) if "debug" in argv else ""
+        if "debug" in argv:
+            stdout = json.dumps(
+                [
+                    {"type": "directory", "path": kwargs["env"]["OPENCODE_CONFIG_DIR"]},
+                    {"type": "document", "info": controlled.CONTROLLED_CONFIG},
+                ]
+            )
+        else:
+            stdout = json.dumps(
+                {"type": "text", "sessionID": "s1", "part": {"type": "text", "text": ""}}
+            )
         return subprocess.CompletedProcess(argv, 0, stdout=stdout, stderr="")
 
-    monkeypatch.setenv("OPENCODE_CONFIG_CONTENT", '{"permission":{"*":"allow"}}')
+    monkeypatch.setenv("OPENCODE_CONFIG_CONTENT", '{"permissions":[{"action":"*","resource":"*","effect":"allow"}]}')
     monkeypatch.setattr(controlled.subprocess, "run", fake_run)
     controlled.opencode_runner("hello", workdir=".", model="test/model")
 
     config = json.loads(captured["env"]["OPENCODE_CONFIG_CONTENT"])
-    assert config == CONTROLLED_CONFIG
-    assert config["permission"]["*"] == "deny"
-    assert config["agent"]["pea-controlled"]["tools"]["*"] is False
-    assert config["plugin"] == []
-    assert commands[0] == ["opencode", "debug", "config", "--pure"]
-    assert "--pure" in commands[1]
-    assert commands[1][commands[1].index("--agent") + 1] == "pea-controlled"
+    assert config == controlled.CONTROLLED_CONFIG
+    assert config["default_agent"] == "pea-controlled"
+    assert config["permissions"][-1] == {"action": "*", "resource": "*", "effect": "deny"}
+    assert config["agents"]["pea-controlled"]["permissions"][-1]["effect"] == "deny"
+    assert config["mcp"] == {"servers": {}}
+    assert config["plugins"] == []
+    assert captured["env"]["OPENCODE_DISABLE_PROJECT_CONFIG"] == "1"
+    assert captured["env"]["OPENCODE_DISABLE_CLAUDE_CODE"] == "1"
+    assert commands[0] == ["opencode", "debug", "config", "--standalone"]
+    run = commands[1]
+    assert run[:9] == [
+        "opencode", "run", "--standalone", "--agent", "pea-controlled",
+        "--format", "json", "-m", "test/model",
+    ]
+    assert "--pure" not in run and "--dir" not in run
+    assert run[-1] == "hello"
 
 
 def test_opencode_runner_resumes_the_session_it_was_given(monkeypatch):
+    import json
     import subprocess
     import patristic_ethics.controlled as controlled
 
     captured = {}
+    commands = []
 
     def fake_run(argv, **kwargs):
+        commands.append(argv)
         captured["argv"] = argv
-        stdout = json.dumps(CONTROLLED_CONFIG) if "debug" in argv else ""
+        if "debug" in argv:
+            stdout = json.dumps(
+                [
+                    {"type": "directory", "path": kwargs["env"]["OPENCODE_CONFIG_DIR"]},
+                    {"type": "document", "info": controlled.CONTROLLED_CONFIG},
+                ]
+            )
+        else:
+            stdout = json.dumps(
+                {"type": "text", "sessionID": "s1", "part": {"type": "text", "text": ""}}
+            )
         return subprocess.CompletedProcess(argv, 0, stdout=stdout, stderr="")
 
     monkeypatch.setattr(controlled.subprocess, "run", fake_run)
@@ -238,23 +318,31 @@ def test_opencode_runner_resumes_the_session_it_was_given(monkeypatch):
 
 
 def test_opencode_runner_never_launches_when_resolved_policy_allows_a_tool(monkeypatch):
+    import json
     import subprocess
     import patristic_ethics.controlled as controlled
 
     commands = []
-    config = json.loads(json.dumps(CONTROLLED_CONFIG))
-    config["permission"]["bash"] = "allow"
+    config = json.loads(json.dumps(controlled.CONTROLLED_CONFIG))
+    config["agents"]["pea-controlled"]["permissions"].append(
+        {"action": "bash", "resource": "*", "effect": "allow"}
+    )
 
     def fake_run(argv, **kwargs):
         commands.append(argv)
-        stdout = json.dumps(config) if "debug" in argv else ""
+        stdout = json.dumps(
+            [
+                {"type": "directory", "path": kwargs["env"]["OPENCODE_CONFIG_DIR"]},
+                {"type": "document", "info": config},
+            ]
+        )
         return subprocess.CompletedProcess(argv, 0, stdout=stdout, stderr="")
 
     monkeypatch.setattr(controlled.subprocess, "run", fake_run)
     out = controlled.opencode_runner("do work", workdir=".", model="test/model")
     assert out.failure == "OpenCode resolved permissions are not deny-all"
     assert len(commands) == 1
-    assert commands[0][:3] == ["opencode", "debug", "config"]
+    assert commands[0] == ["opencode", "debug", "config", "--standalone"]
 
 
 # --- input gate: host never invoked ---

@@ -162,7 +162,7 @@ cp adapters/opencode/index.ts .opencode/plugins/pea-ethics.ts
 # opencode.json: "plugin": [".opencode/plugins/pea-ethics.ts"]
 ```
 
-OpenCode 2.x uses the v2 plugin schema. The bundled `adapters/opencode/index.ts` targets 1.18.x and fails to load on 2.2.5. Use the `pea` MCP server with OpenCode 2.x. The controlled client also requires verification of the effective tools-disabled profile. That inspection failed on OpenCode 2.4.1 and the client withheld output.
+OpenCode 2.x uses the v2 plugin schema. The bundled `adapters/opencode/index.ts` targets 1.18.x and fails to load on 2.2.5. Use the `pea` MCP server with OpenCode 2.x. The controlled client supports OpenCode 2.4.1: it runs the host with `--standalone` and an isolated config directory, and withholds unless the effective config contains only the PEA agent with deny-all permissions and no MCP servers or plugins.
 
 Set the CLI and data paths in the host environment:
 
@@ -173,12 +173,11 @@ export PEA_POLICY="$PWD/policy/rules.json"
 export PEA_BACKEND="ollama"
 ```
 
-**Controlled clients.** The controlled client is the only before-display path. For OpenCode, put the tools-disabled profile in the target directory, then run:
+**Controlled clients.** The controlled client is the only before-display path. For OpenCode 2.4.1, the client injects the controlled profile and does not read a project `opencode.json`:
 
 ```sh
-cp examples/opencode/controlled/opencode.json ./opencode.json
 pea-controlled --prompt "How do I kill a process on Linux?" \
-  --dir . --model ollama/deepseek-v4.1-flash:cloud --backend ollama
+  --dir . --model ollama-cloud/deepseek-v4.1-flash:1017 --backend ollama
 ```
 
 For Claude Code:
@@ -195,7 +194,7 @@ Controlled CLI examples use explicit backends/models:
 
 ```sh
 .venv/bin/python -m patristic_ethics.controlled --backend ollama \
-  --model ollama/ornith-1.5:9b --prompt 'Explain a Python addition function.'
+  --model ollama-cloud/deepseek-v4.1-flash:1017 --prompt 'Explain a Python addition function.'
 .venv/bin/python -m patristic_ethics.claude_controlled --backend ollama \
   --prompt 'Explain a Python addition function.'
 ```

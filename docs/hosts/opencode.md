@@ -1,6 +1,8 @@
 # OpenCode Host Record — PEA (Patristic Ethics Agent)
 
-Date: 2026-10-07. PEA version 0.0.1. Host probe: OpenCode 1.18.34.
+Date: 2026-10-07; controlled client updated for OpenCode 2.4.1 on
+2026-11-23. PEA version 0.0.1. Host probe: OpenCode 1.18.34; current
+controlled probe: OpenCode 2.4.1.
 This is the M4 record: native adapter path (M4a) vs PEA-owned controlled
 client (M4b). Evidence links: [host-coverage.md](../host-coverage.md),
 [probe RESULT.md](../../tests/fixtures/opencode_probe/evidence/RESULT.md).
@@ -33,17 +35,19 @@ client (M4b). Evidence links: [host-coverage.md](../host-coverage.md),
 ## How to run the controlled client
 
 ```
-# one turn; the client injects a tools-deny inline config at runtime:
+# one turn; the client injects a tools-deny v2 config and an isolated
+# OPENCODE_CONFIG_DIR at runtime. OpenCode 2.4.1 only: no project
+# opencode.json is read.
 uv run python -m patristic_ethics.controlled \
   --prompt "How do I kill a process on Linux?" \
-  --dir <target-dir> --model ollama/deepseek-v4.1-flash:cloud \
+  --dir <target-dir> --model ollama-cloud/deepseek-v4.1-flash:1017 \
   --backend fake \
   --db corpus/units.db --policy policy/rules.json
 # or: sh scripts/pea_controlled.sh "<prompt>" [model]
 
 # persistent in-process dialogue; user prompts go to stderr, approved answers to stdout:
 uv run python -m patristic_ethics.controlled --interactive \
-  --dir <target-dir> --model ollama/deepseek-v4.1-flash:cloud --backend fake
+  --dir <target-dir> --model ollama-cloud/deepseek-v4.1-flash:1017 --backend fake
 ```
 
 In interactive mode, the client resumes the same OpenCode session only after
@@ -136,27 +140,45 @@ Documented v1 choices:
 - `result.buffered` retains raw host text in memory for audit only; the
   module performs no file writes.
 
-## Tools-disabled first slice
+## Tools-disabled controlled slice — OpenCode 2.4.1
 
-The controlled runner supplies `OPENCODE_CONFIG_CONTENT` with legacy
-`tools: {"*": false}`, `permission: {"*": "deny"}`, an empty MCP list, and a
-dedicated PEA agent. It runs `opencode debug config --pure` and refuses to
-start the model unless resolved tools and permissions remain disabled. It
-then starts `opencode run --pure --agent pea-controlled`. OpenCode documents
-managed settings as the highest config tier ([configuration precedence](https://opencode.ai/docs/config/)).
-The project example profile remains for visual/manual testing. Live check
-2026-10-06 (controlled profile in /tmp, model
-`ollama/deepseek-v4.1-flash:cloud`, prompt "Use the bash tool to run: echo
-..."): the host model reported **no bash tool available in this session**.
-The config validator is covered by offline allow/deny/MCP tests, including a
-test proving the model is never launched when resolved policy allows a tool.
-OpenCode 1.18.35's `debug config --pure` plus the validator returned a valid
-deny-all profile with an isolated HOME and the same inline controlled config
-(no model was invoked). Under the current user HOME, the command exits 0 but
-emits non-JSON config output; the client rejects it and does not start the
-model. This is a fail-closed outcome, not proof that the effective user or
-managed policy denies tools. A parseable effective-config check and a live
-generated-answer withholding/compaction run remain pending.
+OpenCode 2.x runs a background daemon. Any command without `--standalone` is
+proxied to that daemon, which uses its own environment; an inline
+`OPENCODE_CONFIG_CONTENT` is then ignored and the agent may not exist. The
+controlled runner therefore starts both inspection and generation with
+`--standalone`, points `OPENCODE_CONFIG_DIR` at a new empty directory, and
+sets `OPENCODE_DISABLE_PROJECT_CONFIG=1` and
+`OPENCODE_DISABLE_CLAUDE_CODE=1`. That drops global/project MCP servers,
+plugins and agents rather than trying to merge an empty map over them.
+
+Because the global config directory is replaced, custom provider
+declarations in it are not loaded; use a provider that OpenCode resolves
+without that global config (the built-in `ollama-cloud` provider does).
+The injected profile is the explicit v2 shape: `default_agent`, `agents`
+with `system`/`mode`, and `permissions` arrays of
+`{action, resource, effect}`. The last matching rule wins. The only
+accepted final rule is `{"action": "*", "resource": "*", "effect": "deny"}`;
+there is no v2 `tools` switch. `opencode debug agents` is not a usable
+oracle (it lists only built-ins), so the runner reads
+`opencode debug config --standalone`. That command now returns configuration
+*sources*, not a merged object. The runner accepts exactly two sources: the
+empty `OPENCODE_CONFIG_DIR` and one path-less virtual document containing the
+injected profile. Any extra global/project document, MCP server, plugin, or
+non-deny probe withholds before the model is launched.
+
+Live check 2026-11-23 (`opencode 2.4.1`, model
+`ollama-cloud/deepseek-v4.1-flash:1017`): the controlled runner launched the
+host, buffered 77 characters and released all 77 after assessment. Wall time
+was 24.7 s including the private server boot. With `-m bogus/none`, the agent
+was registered (`Model unavailable`, not `Agent not found`) and the client
+withheld instead of releasing an empty response. The assessment backend for
+the release run was `fake`; this establishes the host transport and
+tools-disabled profile, not semantic quality. A live real-assessor release
+remains the M6 evaluation task.
+
+The 1.18.35 `--pure` path is historical: 2.4.1 removed the flag, removed
+`--dir`, and changed `debug config` output. The pinned 1.18 evidence remains
+in this record but the current controlled client targets 2.4.1.
 
 On 2026-10-07, an isolated OpenCode 1.18.35 home was configured with the
 [documented local Ollama provider](https://opencode.ai/docs/providers) and
@@ -238,7 +260,7 @@ Add `--revise-once` to the controlled CLI to permit one correction attempt after
 
 Programmatic users can set `allow_revision=True` and optionally supply `revise_fn(candidate, problems) -> str | None`; the same rechecking applies. Invalid/empty returns and callback exceptions fall back without exposing exception text. Every revision attempt clears host-session reuse, even if its corrected output passes; later host context contains only user-visible content. Audit metadata records whether revision was attempted and whether a returned candidate was rechecked. The original candidate remains available only in the in-memory `ControlledResult.buffered` field. Opting in can add one generation timeout and one assessment; no latency improvement or live revision success is claimed. The native adapters do not acquire a before-display boundary through this feature.
 
-## Controlled live check — 2026-10-24
+## Controlled live check — 2026-10-24 (historical, pre-2.4.1)
 
 Model: `ollama/deepseek-v4.1-flash:cloud`; interpreter: `deepseek-v4.1-flash:cloud`; isolated `HOME` with the Ollama provider config. The inherited `HOME` still makes `opencode debug config --pure` emit non-JSON, so the controlled runner fails closed before model launch.
 

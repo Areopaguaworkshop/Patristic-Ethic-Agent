@@ -1,7 +1,7 @@
 # Codex Host Record — PEA (Patristic Ethics Agent)
 
-Date: 2026-10-07. PEA version 0.0.1. Host: Codex CLI 0.160.0 (hook facts
-from fresh research 2026-10-07, not live-probed in this repo yet).
+Date: 2026-10-07; live-probed on Codex CLI 0.171.0 on 2026-11-23.
+PEA version 0.0.1. Host: Codex CLI 0.171.0.
 Adapter: `src/patristic_ethics/adapters/codex.py` + example wiring
 `examples/codex/hooks.json`. Related records:
 [OpenCode](opencode.md), [host-coverage.md](../host-coverage.md).
@@ -10,14 +10,14 @@ Adapter: `src/patristic_ethics/adapters/codex.py` + example wiring
 
 | Capability | Codex native hooks (this adapter) | Evidence basis |
 |---|---|---|
-| Prompt assessment + context injection | Yes — `UserPromptSubmit` `additionalContext`; guidance visible to the model alongside the prompt | researched, 0.160.0 |
-| Prompt blocking | Yes — `UserPromptSubmit` `{"decision":"block","reason":...}` for refuse/clarify/review/withhold | researched |
-| Pre-action tool gate | Yes — `PreToolUse` `permissionDecision: "deny"` blocks the call; `guide` allows with injected `additionalContext` (advisory) | researched |
-| Post-hoc output warning | Partial — `PostToolUse`/`Stop` refuse emits `additionalContext` warning; content already produced; `Stop` can `{"decision":"block"}` but that cannot un-emit anything | researched |
-| Before-display guarantee | **No.** Codex has NO MessageDisplay event; streamed host text cannot be withheld by a hook | researched |
-| Context collection | **Degraded.** `transcript_path` is nullable and documented NOT stable — never parsed; configured hook-observed prior turns; `history.complete=false` always | researched, deliberate |
-| Failure behavior | **Fail-closed while the hook process responds.** Assessment errors, timeouts, and invalid results block UserPromptSubmit/PreToolUse; malformed input, unmapped events, or host-killed hook processes cannot be handled here | researched protocol + offline-tested |
-| Config activation | `[features] hooks = true` (config.toml) or inline `[hooks]`; hooks load from `<repo>/.codex/hooks.json` and `~/.codex/hooks.json` | researched |
+| Prompt assessment + context injection | Yes — `UserPromptSubmit` `additionalContext`; guidance visible to the model alongside the prompt | live 0.171.0 |
+| Prompt blocking | Yes — `UserPromptSubmit` `{"decision":"block","reason":...}` for refuse/clarify/review/withhold | live 0.171.0 |
+| Pre-action tool gate | Yes — `PreToolUse` `permissionDecision: "deny"` blocks the call; `guide` allows with injected `additionalContext` (advisory) | live 0.171.0 (deny path) |
+| Post-hoc output warning | Partial — `PostToolUse`/`Stop` refuse emits `additionalContext` warning; content already produced; `Stop` can `{"decision":"block"}` but that cannot un-emit anything | researched; not live-probed |
+| Before-display guarantee | **No.** Codex has NO MessageDisplay event; streamed host text cannot be withheld by a hook | protocol/source |
+| Context collection | **Degraded.** `transcript_path` is nullable and documented NOT stable — never parsed; configured hook-observed prior turns; `history.complete=false` always | payload/source; deliberate |
+| Failure behavior | **Fail-closed while the hook process responds.** Assessment errors, timeouts, and invalid results block UserPromptSubmit/PreToolUse; malformed input, unmapped events, or host-killed hook processes cannot be handled here | protocol + offline tests; live block/deny observed |
+| Config activation | `[features] hooks = true` (config.toml) or inline `[hooks]`; hooks load from `<repo>/.codex/hooks.json` and `~/.codex/hooks.json` | live 0.171.0 |
 
 ## Event → AssessResult action → Codex protocol output
 
@@ -59,15 +59,15 @@ Policy/corpus version pins: `0.1.0-draft`/`0.1.0-draft`.
 
 ## Status vs OpenCode record
 
-| Dimension | OpenCode 1.18.34 (probed) | Codex 0.160.0 (researched) |
+| Dimension | OpenCode 1.18.34 (probed) | Codex 0.171.0 (live-probed) |
 |---|---|---|
-| Prompt injection | Full TextPart injection via `chat.message` (probe S3 PASS) | `additionalContext` on UserPromptSubmit (researched) |
-| Prompt block | `chat.message` throw is undocumented behavior | Documented `{"decision":"block","reason"}` |
-| Tool gate | `tool.execute.before` throw (probe S2 PASS) | Documented `permissionDecision: "deny"` |
+| Prompt injection | Full TextPart injection via `chat.message` (probe S3 PASS) | `additionalContext` on UserPromptSubmit (live) |
+| Prompt block | `chat.message` throw is undocumented behavior | `{"decision":"block","reason"}` (live) |
+| Tool gate | `tool.execute.before` throw (probe S2 PASS) | `permissionDecision: "deny"` (live) |
 | Before-display | Not achievable (`experimental.text.complete` fires after deltas) | Not achievable (no MessageDisplay event at all) |
 | Context collection | Session fetch via hook client (v1: fresh session only) | None — transcript unstable, never parsed |
-| Failure mode | Fails closed for covered native tool calls; output remains advisory | Fails closed for supported input/pre-tool events; host termination remains unhandled |
-| Live probe evidence | Yes (M4, 2026-10-06) | **No — facts researched 2026-10-07; no live probe yet** |
+| Failure mode | Fails closed for covered tool calls; output remains advisory | Fails closed for supported input/pre-tool events; host termination remains unhandled |
+| Live probe evidence | Yes (M4, 2026-10-06) | **Yes — 0.171.0, 2026-11-23 (input block + tool deny)** |
 
 ## Installing without touching global config
 
@@ -87,8 +87,14 @@ cd /tmp/pea-codex-test && codex
 Project-layer hooks must be **trusted**: accept the `/hooks` trust
 prompt (or review the file) when Codex loads it; an untrusted project
 hooks file is silently skipped, leaving PEA inactive with no error.
-`--dangerously-bypass-hook-trust` exists but should be used only with
-hook files from fully vetted sources.
+Under non-interactive `codex exec`, project config needs both `--trust`
+(load the project layer) and `--dangerously-bypass-hook-trust` (run
+unreviewed hooks); either flag alone is insufficient. The bypass flag
+should be used only with hook files from fully vetted sources.
+
+Codex 0.171.0's hooks parser rejects unknown top-level keys. A `$schema`
+key silently disables the entire file (`unknown field $schema, expected
+description or hooks`). Do not add one back to `examples/codex/hooks.json`.
 
 Environment passthrough: `PEA_BACKEND` (`fake`|`ollama`), `PEA_DB`,
 `PEA_POLICY` are read by the adapter and forwarded to the PEA CLI as
@@ -104,8 +110,33 @@ uv run pytest -q tests/integration/test_codex_hooks.py   # offline, no codex pro
 The tests cover envelope building per event, the full decide mapping,
 `main` error-block paths with faked stdin/runner, protocol purity (stdout
 carries at most one JSON line; diagnostics only on stderr), and the
-example hooks.json. Live-probing the mapped facts above remains open
-work for a follow-up (a temp project + trust flow, as above).
+example hooks.json. Live hook delivery on 0.171.0 is recorded below.
+PostToolUse/Stop delivery and transcript coverage remain open.
+
+## Live probe — 2026-11-23
+
+Codex CLI 0.171.0, logged in, with a local fake Responses provider and a
+throwaway `CODEX_HOME` plus project; no paid model call. The hook command
+was the repo's `.venv/bin/pea-codex-hook` with `PEA_BACKEND=fake`,
+`PEA_DB` and `PEA_POLICY`.
+
+Observed:
+
+- Benign prompt: `hook: UserPromptSubmit` → Completed, then
+  `hook: PreToolUse` → Completed for the fake model's `ls`; the tool ran.
+- Refusing prompt: the hook emitted `{"decision":"block","reason":...}`;
+  the host logged `hook: UserPromptSubmit Blocked` and made no model
+  request.
+- Fake model requested a harmful shell command: `PreToolUse` emitted
+  `permissionDecision: "deny"`; the host logged
+  `Command blocked by PreToolUse hook` and did not run it. The run still
+  exited 0.
+- Payloads carry `session_id`, `turn_id`, `transcript_path`, `cwd`,
+  `hook_event_name`, `model`, `permission_mode`, and event-specific
+  fields. **No Codex version field is present**; the adapter records its
+  pinned default (`0.171.0`).
+- Hook `timeout` is in seconds; the example's 30 s leaves margin over the
+  adapter's 15 s CLI timeout.
 
 ## Hook-observed dialogue history (engineering step 6)
 
@@ -125,4 +156,5 @@ Source contracts checked on 2026-10-07: [Codex hooks](https://developers.openai.
 
 Separate real hook subprocesses with the offline fake backend now verify that allowed prompts and assessed Stop outputs survive process restarts without extra stdout. For payloads carrying an explicit `turn_id` or `prompt_id`, identical role/text observations with the same ID are deduplicated by a host/session-scoped digest. Different explicit IDs preserve identical text as distinct turns. The adapter's generated fallback turn ID is never used for deduplication. Without an explicit ID, replay cannot be distinguished from a legitimate repetition. Deduplication covers retained observations only; it is not a durable action-dispatch ledger.
 
-Existing history databases gain a nullable event-key column and a unique index without discarding stored dialogue. Malformed rows report incomplete collection rather than crashing the adapter. A failed evaluator blocks supported input events without adding the failed prompt. A symlink at the configured path is rejected on opening; this does not establish an OS boundary against a same-user attacker or a path-replacement race. These checks remain offline host-process evidence, not proof of live hook delivery.
+Existing history databases gain a nullable event-key column and a unique index without discarding stored dialogue. Malformed rows report incomplete collection rather than crashing the adapter. A failed evaluator blocks supported input events without adding the failed prompt. A symlink at the configured path is rejected on opening; this does not establish an OS boundary against a same-user attacker or a path-replacement race. Live hook delivery is proven for UserPromptSubmit and PreToolUse (below);
+Stop/history collection remains offline host-process evidence.

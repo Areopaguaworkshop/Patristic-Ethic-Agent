@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "explainer",
+  "quality": "showcase",
+  "specification": {
+    "path": "/home/ajia/Projects/EthicAgent/docs/plans/pea-performance.archify.md",
+    "sha256": "588996ff41f0ae23240e505ccb5276d67fce84bd1ae805589d648fe89ca163db",
+    "bytes": 2656
+  },
+  "artifact": {
+    "path": "/home/ajia/Projects/EthicAgent/docs/plans/pea-performance.html",
+    "sha256": "519a3fa087206567d854d2833b5f3670e96b9645d579876ccc4df665086e6354",
+    "bytes": 145581
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "not-run"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/home/ajia/Projects/EthicAgent/docs/plans/pea-performance.finalize.json",
+    "summaryReceipt": "/home/ajia/Projects/EthicAgent/docs/plans/pea-performance.finalize-summary.json"
+  },
+  "visualReview": "not-requested",
+  "durationMs": 3591,
+  "browserCheck": {
+    "requested": false,
+    "ran": false
+  }
+}

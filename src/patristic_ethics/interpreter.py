@@ -216,7 +216,8 @@ class OllamaInterpreter:
         "context verbatim; include at least one item and use only source_ids "
         "that appear in the context\n"
         "- benign_explanations: plausible innocent readings, if any\n"
-        "- unresolved_ambiguity: what is unclear, if anything\n"
+        "- unresolved_ambiguity: only ambiguity that could change the ethical "
+        "decision; omit minor unspecified details that do not change it\n"
         "- confidence: 0 to 1, or null\n"
         "Quote verbatim, do not invent sources, judge only what is expressed."
     )
@@ -265,7 +266,11 @@ class OllamaInterpreter:
             ) from e
 
         try:
-            parsed = normalize_observation_payload(json.loads(content))
+            text = content.strip()
+            if text.startswith("```"):
+                text = re.sub(r"^```(?:json)?\s*", "", text)
+                text = re.sub(r"\s*```$", "", text)
+            parsed = normalize_observation_payload(json.loads(text))
         except json.JSONDecodeError as e:
             raise InterpreterUnavailable(
                 InterpreterFailure(

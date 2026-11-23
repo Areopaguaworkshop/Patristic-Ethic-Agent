@@ -185,6 +185,8 @@ def main(argv=None):
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--context-length", type=int, default=None)
     parser.add_argument("--thinking", choices=["model-default", "on", "off"], default="model-default")
+    parser.add_argument("--assessment-thinking", choices=["model-default", "on", "off"], default=None,
+                        help="assessor thinking mode; defaults to --thinking")
     parser.add_argument("--db", default="corpus/units.db")
     parser.add_argument("--policy", default="policy/rules.json")
     parser.add_argument("--constitution", default="policy/constitution.md")
@@ -221,6 +223,8 @@ def main(argv=None):
         if args.context_length is not None:
             options["num_ctx"] = args.context_length
         think = None if args.thinking == "model-default" else args.thinking == "on"
+        assessment_choice = args.assessment_thinking or args.thinking
+        assessment_think = None if assessment_choice == "model-default" else assessment_choice == "on"
         if args.backend == "fake":
             generator = lambda messages: HostOutput(text="Offline placeholder response; not model behavior.")
             interpreter = FakeInterpreter([])
@@ -228,13 +232,14 @@ def main(argv=None):
             generator = OllamaGenerator(args.model, args.host, args.timeout, options, think=think)
             interpreter = OllamaInterpreter(model=args.assessment_model or args.model,
                                             host=args.host, timeout_s=args.timeout,
-                                            num_ctx=args.context_length, think=think)
+                                            num_ctx=args.context_length, think=assessment_think)
         report = run_comparison(cases, generator, interpreter, policy, args.db,
                                 constitution, repeats=args.repeats)
         report.update(backend=args.backend, generation_model=args.model if args.backend == "ollama" else None,
                       assessment_model=(args.assessment_model or args.model) if args.backend == "ollama" else None,
                       generation_options=options, timeout_s=args.timeout,
                       thinking=args.thinking,
+                      assessment_thinking=assessment_choice,
                       assessment_options=dict(temperature=0, num_predict=OllamaInterpreter.NUM_PREDICT,
                                               num_ctx=args.context_length),
                       host=args.host if args.backend == "ollama" else None,

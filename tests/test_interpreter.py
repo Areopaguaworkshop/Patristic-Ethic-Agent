@@ -94,6 +94,18 @@ def make_offline_ollama(monkeypatch):
     return interp, client
 
 
+def test_observation_prompt_limits_ambiguity_to_material():
+    prompt = build_prompt(build_envelope(request="write a poem"), OllamaInterpreter._TASK)
+    assert "only ambiguity that could change" in prompt
+
+
+def test_ollama_accepts_fenced_json():
+    interp, client = make_offline_ollama(None)
+    client.chat.return_value.message.content = f"```json\n{OBS.model_dump_json()}\n```"
+    observation = interp.interpret(build_envelope(request="write a poem"))
+    assert observation.requested_assistance
+
+
 def test_ollama_explicit_context_and_thinking_options():
     interp = OllamaInterpreter(model="test-model", num_ctx=4096, think=False)
     client = MagicMock()

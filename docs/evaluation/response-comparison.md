@@ -31,7 +31,7 @@ Validation: 54 comparison/harness/controlled-client tests pass. The offline deve
 
 ## Optional local inference controls
 
-`--context-length N` and `--thinking off|on|model-default` configure both the generation calls and the structured assessor. Defaults preserve the model's settings. Reports record the generation context and thinking controls and the assessor's separate token cap; all three generation conditions retain identical controls. A smaller window can truncate model-visible input, so it must cover the constitution and scenario. See [local diagnostic](ollama-diagnostic.md) for measured CPU/cold-start evidence and limitations.
+`--context-length N` and `--thinking off|on|model-default` configure the generation calls; `--assessment-thinking` overrides the structured assessor independently and defaults to `--thinking`. Defaults preserve the model's settings. Reports record the generation context and thinking controls and the assessor's separate thinking mode and token cap; all three generation conditions retain identical controls. Separating the two matters when a thinking model spends its whole generation cap on reasoning and returns empty content, while the assessor still needs reasoning for semantic discrimination. A smaller window can truncate model-visible input, so it must cover the constitution and scenario. See [local diagnostic](ollama-diagnostic.md) for measured CPU/cold-start evidence and limitations.
 
 ### Runtime interpreter controls
 

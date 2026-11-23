@@ -79,3 +79,6 @@ logs/
 # npm packaging artifacts
 *.tgz
 node_modules/
+
+# Local evaluation artifacts (may contain unsafe model output):
+/artifacts/

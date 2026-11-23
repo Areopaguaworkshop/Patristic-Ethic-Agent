@@ -18,6 +18,10 @@ def project(tmp_path):
     (tmp_path / "uv.lock").write_text("test lock\n")
     (tmp_path / "corpus/seed.jsonl").write_text("fixture\n")
     (tmp_path / "corpus/units.db").write_bytes(b"test corpus")
+    (tmp_path / "corpus/scripture.jsonl").write_text("scripture fixture\n")
+    bundled = tmp_path / "src/patristic_ethics/data/corpus"
+    bundled.mkdir(parents=True)
+    (bundled / "units.db").write_bytes(b"packaged corpus")
     (tmp_path / "docs/evidence.md").write_text("Synthetic evidence, not release acceptance\n")
     profile = dict(schema_version=1, id="test-experimental", package_version="0.0.1",
                    status="experimental", release_ready=False,
@@ -37,6 +41,14 @@ def test_deterministic_snapshot_includes_inputs_and_ignores_private_runtime(tmp_
     assert "corpus/runtime.db" not in snapshot["files"]
     assert "src/__pycache__/app.py" not in snapshot["files"]
     assert "uv.lock" in snapshot["files"]
+    for corpus_input in ("corpus/scripture.jsonl", "src/patristic_ethics/data/corpus/units.db"):
+        target = tmp_path / corpus_input
+        original = target.read_bytes()
+        target.write_bytes(original + b"changed")
+        changed = freeze.build_snapshot(tmp_path, "profile.json")
+        assert changed["files"][corpus_input] != snapshot["files"][corpus_input]
+        assert changed["inputs_sha256"] != snapshot["inputs_sha256"]
+        target.write_bytes(original)
     (tmp_path / "src/app.py").write_text("changed")
     changed = freeze.build_snapshot(tmp_path, "profile.json")
     assert changed["inputs_sha256"] != snapshot["inputs_sha256"]

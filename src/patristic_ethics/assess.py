@@ -16,11 +16,12 @@ from __future__ import annotations
 
 import json
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-from . import corpus, guidance, policy
+from . import corpus, csl, guidance, policy
 from .interpreter import Evidence, InterpreterFailure, InterpreterUnavailable, Observation
 
 if TYPE_CHECKING:
@@ -127,6 +128,39 @@ def _retrieve(db_path, topics: list[str]) -> tuple[list, str]:
     return units, ("partial" if errors else "verified")  # type: ignore[return-value]
 
 
+def _retrieve_evidence(db_path, topics, principle_ids):
+    units, status = _retrieve(db_path, topics)
+    if db_path is None or not principle_ids:
+        return units, status
+    scripture_path = Path(db_path).with_name("scripture.jsonl")
+    if not scripture_path.is_file():
+        return units, status
+    try:
+        records = csl.load_csl(scripture_path)
+        if csl.validate_csl(records, "scripture"):
+            return units, "partial" if units else "missing"
+        scripture = [csl.CslUnit.from_record(record, "scripture") for record in records]
+    except (OSError, TypeError, ValueError, AttributeError):
+        return units, "partial" if units else "missing"
+    matched = [
+        unit for unit in scripture
+        if any(pid in principle_ids for pid in unit.principle_ids)
+    ]
+    if not matched:
+        return units, status
+    scripture_ids = {unit.id for unit in matched}
+    return matched + [unit for unit in units if unit.id not in scripture_ids], (
+        "verified" if status == "missing" else status
+    )
+
+
+def _verified_guidance(decision, units, descriptions, verifier):
+    verified = [unit for unit in units if unit.text and verifier(unit.id, unit.text)]
+    return guidance.compose_guidance(
+        decision, passages=verified, principle_descriptions=descriptions
+    )
+
+
 def _withheld_guidance() -> "GuidanceResult":
     return guidance.GuidanceResult(
         text=_WITHHELD_MESSAGE,
@@ -151,7 +185,7 @@ def _safety_text(envelope: "ContextEnvelope") -> str:
     return text
 
 
-def _non_overridable_safety(staged, policy_doc: dict, db_path):
+def _non_overridable_safety(staged, policy_doc: dict, db_path, verify_fn):
     """Refuse explicit P01-P03 harm without depending on the model.
 
     This is the emergency lexical path for the gravest principles. It runs
@@ -180,7 +214,7 @@ def _non_overridable_safety(staged, policy_doc: dict, db_path):
     for principle in policy_doc.get("principles", []):
         if principle["id"] in safety:
             topics.extend(principle.get("topics", []))
-    units, source_status = _retrieve(db_path, topics)
+    units, source_status = _retrieve_evidence(db_path, topics, set(safety))
     observation = Observation(
         requested_assistance=text,
         assistance_type="facilitation",
@@ -203,18 +237,20 @@ def _non_overridable_safety(staged, policy_doc: dict, db_path):
         p["id"]: f"{p['id']} {p.get('title', p['id'])}"
         for p in policy_doc.get("principles", [])
     }
-    result = guidance.compose_guidance(
-        decision, passages=units, principle_descriptions=descriptions
+    result = _verified_guidance(
+        decision, units, descriptions, verify_fn or _default_verify(db_path, units)
     )
-    result.citations = guidance.filter_verified(
-        result.citations, _default_verify(db_path, units)
-    )
-    if units and not result.citations:
-        result = guidance.compose_guidance(
-            decision, passages=[], principle_descriptions=descriptions
-        )
     action = _ACTION_FOR_DISPOSITION.get(decision.disposition, "withhold")
     return decision, result, action
+
+
+@contextmanager
+def _measure(timings: dict[str, float], stage: str):
+    start = time.perf_counter()
+    try:
+        yield
+    finally:
+        timings[stage] = round((time.perf_counter() - start) * 1000, 2)
 
 
 def assess(
@@ -227,12 +263,14 @@ def assess(
     verify_fn=None,
 ) -> AssessResult:
     start = time.perf_counter()
+    timings: dict[str, float] = {}
     audit: dict = {
         "event_id": envelope.turn.event_id or envelope.turn.id,
         "session_id": envelope.session.id,
         "stage": envelope.stage,
         "policy_version": policy_doc.get("policy_version", ""),
         "corpus_version": corpus_version,
+        "stage_latency_ms": timings,
     }
     policy_problems = policy.validate_policy_doc(policy_doc)
     if policy_problems:
@@ -253,12 +291,14 @@ def assess(
     try:
         staged = envelope.model_copy(deep=True)
         staged.request = _stage_request(envelope)
-        safety = _non_overridable_safety(staged, policy_doc, db_path)
+        with _measure(timings, "safety_precheck"):
+            safety = _non_overridable_safety(staged, policy_doc, db_path, verify_fn)
         if safety is not None:
             decision, guidance_result, action = safety
             return _finish(action, decision, guidance_result, None, audit, start, None)
-        obs = interpreter.interpret(staged)
-        _validate_observation_evidence(obs, envelope)
+        with _measure(timings, "interpretation"):
+            obs = interpreter.interpret(staged)
+            _validate_observation_evidence(obs, envelope)
     except InterpreterUnavailable as e:
         failure = e.failure
         action = "withhold" if envelope.stage == "output" else "clarify"
@@ -301,7 +341,8 @@ def assess(
     for p in policy_doc.get("principles", []):
         if p["id"] in {m.id for m in matched}:
             topics.extend(p.get("topics", []))
-    units, source_status = _retrieve(db_path, topics)
+    with _measure(timings, "retrieval"):
+        units, source_status = _retrieve_evidence(db_path, topics, {p.id for p in matched})
 
     decision = policy.evaluate_policy(
         obs,
@@ -315,21 +356,15 @@ def assess(
         p["id"]: f"{p['id']} {p.get('title', p['id'])}"
         for p in policy_doc.get("principles", [])
     }
-    guidance_result = guidance.compose_guidance(
-        decision, passages=units, principle_descriptions=descriptions
-    )
-    verifier = verify_fn or _default_verify(db_path, units)
-    guidance_result.citations = guidance.filter_verified(
-        guidance_result.citations, verifier
-    )
-    if units and not guidance_result.citations:
-        guidance_result = guidance.compose_guidance(
-            decision, passages=[], principle_descriptions=descriptions
+    with _measure(timings, "citation_verification"):
+        guidance_result = _verified_guidance(
+            decision, units, descriptions, verify_fn or _default_verify(db_path, units)
         )
 
     if envelope.stage == "output":
         candidate = envelope.candidate_response or ""
-        check = guidance.assess_output(candidate, decision, units)
+        with _measure(timings, "output_check"):
+            check = guidance.assess_output(candidate, decision, units)
         citation_problem = any(
             problem in ("unsupported_quote", "missing_citation")
             for problem in check.problems

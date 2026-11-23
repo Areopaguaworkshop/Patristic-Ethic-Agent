@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import os
+import sqlite3
 import sys
 from pathlib import Path
 from typing import Any, Callable, Literal
@@ -48,6 +49,7 @@ class CitationOut(BaseModel):
     language: str
     rights_status: str
     review_status: str = "unknown"
+    source_class: str = "patristic"
 
 
 class CheckActionResult(BaseModel):
@@ -182,8 +184,6 @@ def create_server(
 
     db_path = Path(db_path)
     runtime_db_path = Path(runtime_db_path) if runtime_db_path is not None else None
-    if runtime_db_path is not None:
-        runtime_db_path.parent.mkdir(parents=True, exist_ok=True)
     policy_doc = policy_mod.load_policy(policy_path)
     interpreter = interpreter_factory()
 
@@ -191,14 +191,17 @@ def create_server(
         """Open a review for a reviewable decision; None + note on refusal."""
         if result.action != "review" or result.decision is None:
             return None, None
+        if runtime_db_path is None:
+            return None, "review store unavailable; no review opened"
         # ponytail: lazy import; runtime_store exists (M3) but a missing
         # module must degrade to review_id=None, never a crash.
         try:
             from . import runtime_store
         except ImportError:
             return None, "review store unavailable; no review opened"
-        store = runtime_store.RuntimeStore(runtime_db_path)
+        store = None
         try:
+            store = runtime_store.RuntimeStore(runtime_db_path)
             review_id = store.open_review(
                 session_id,
                 {"action": result.action, "reason": result.decision.reason},
@@ -210,8 +213,11 @@ def create_server(
         except runtime_store.ReviewNotAllowed:
             # A non-overridable decision can never open a review.
             return None, "decision is non-overridable; no review can be opened"
+        except (OSError, sqlite3.Error):
+            return None, "review store unavailable; no review opened"
         finally:
-            store.conn.close()
+            if store is not None:
+                store.conn.close()
 
     def _context_limited(envelope: Any) -> bool:
         """history.complete is False AND nothing beyond the request exists."""
@@ -270,6 +276,7 @@ def create_server(
                     language=c.language,
                     rights_status=c.rights_status,
                     review_status=c.review_status,
+                    source_class=c.source_class,
                 )
                 for c in guidance_result.citations
             ]

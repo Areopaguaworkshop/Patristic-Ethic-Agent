@@ -55,6 +55,13 @@ def validate_comparison_cases(cases):
                        or not isinstance(t.get("text"), str) for t in turns)
                 or turns[-1]["role"] != "user"):
             raise ValueError("comparison cases require an id and user/assistant turns ending in a user request")
+        passages = case.get("reference_passage_ids")
+        if passages is not None and (
+            not isinstance(passages, list) or not passages
+            or any(not isinstance(unit_id, str) or not unit_id.strip() for unit_id in passages)
+            or len(set(passages)) != len(passages)
+        ):
+            raise ValueError("reference_passage_ids must be a nonempty list of unique passage IDs")
 
 
 def run_comparison(cases, generator, interpreter, policy_doc, db_path,
@@ -89,10 +96,21 @@ def run_comparison(cases, generator, interpreter, policy_doc, db_path,
                     result = assess(context, interpreter=interpreter, policy_doc=policy_doc,
                                     db_path=db_path, corpus_version=corpus_version)
                     assessment_usage.append(getattr(interpreter, "last_usage", None))
+                    guidance = result.guidance
+                    citations = [
+                        dict(unit_id=c.unit_id, source_class=c.source_class,
+                             author=c.author, work=c.work, locus=c.locus,
+                             source_url=c.source_url, review_status=c.review_status)
+                        for c in (guidance.citations if guidance else [])
+                    ]
                     assessments.append(dict(stage=envelope.stage, action=result.action,
                                             disposition=result.decision.disposition if result.decision else None,
+                                            source_status=guidance.source_status if guidance else None,
+                                            citations=citations,
                                             failure_kind=result.failure.kind if result.failure else None,
-                                            failure_reason=result.failure.reason if result.failure else None))
+                                            failure_reason=result.failure.reason if result.failure else None,
+                                            latency_ms=result.audit["latency_ms"],
+                                            stage_latency_ms=result.audit["stage_latency_ms"]))
                     return result
 
                 start = time.perf_counter()
@@ -117,6 +135,15 @@ def run_comparison(cases, generator, interpreter, policy_doc, db_path,
                                     latency_ms=round((time.perf_counter()-start)*1000, 2),
                                     generation_usage=generation_usage, assessment_usage=assessment_usage,
                                     assessments=assessments, human_grades=None))
+                if condition == "full_pea" and case.get("reference_passage_ids"):
+                    citations = assessments[-1]["citations"] if assessments else []
+                    selected_ids = {citation["unit_id"] for citation in citations}
+                    reference_ids = case["reference_passage_ids"]
+                    records[-1]["passage_selection"] = {
+                        "reference_ids": reference_ids,
+                        "matched_ids": [unit_id for unit_id in reference_ids if unit_id in selected_ids],
+                        "missed_ids": [unit_id for unit_id in reference_ids if unit_id not in selected_ids],
+                    }
     summaries = {}
     for condition in CONDITIONS:
         group = [r for r in records if r["condition"] == condition]
@@ -126,6 +153,17 @@ def run_comparison(cases, generator, interpreter, policy_doc, db_path,
             latency_ms=dict(p50=_percentile([r["latency_ms"] for r in group], 50),
                             p95=_percentile([r["latency_ms"] for r in group], 95)),
         )
+        if condition == "full_pea":
+            labeled = [r["passage_selection"] for r in group if "passage_selection" in r]
+            reference_count = sum(len(r["reference_ids"]) for r in labeled)
+            matched_count = sum(len(r["matched_ids"]) for r in labeled)
+            summaries[condition]["passage_selection"] = dict(
+                labeled_trials=len(labeled),
+                trials_with_match=sum(bool(r["matched_ids"]) for r in labeled),
+                reference_count=reference_count,
+                matched_count=matched_count,
+                recall=matched_count / reference_count if reference_count else None,
+            )
     return dict(label=DEV_ONLY_LABEL, comparison_scope="tools-disabled direct Ollama generation; not live host conformance",
                 grading_status="pending human response review; no baseline disposition or task-success inference",
                 repeats=repeats, conditions=list(CONDITIONS), condition_summaries=summaries, cases=records)
@@ -134,6 +172,8 @@ def run_comparison(cases, generator, interpreter, policy_doc, db_path,
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cases", required=True)
+    parser.add_argument("--holdout", choices=["base", "ambiguity"],
+                        help="require the reviewed-set gate regardless of the case filename")
     parser.add_argument("--backend", choices=["fake", "ollama"], default="fake")
     parser.add_argument("--model", default="ornith-1.5:9b")
     parser.add_argument("--assessment-model", default=None)
@@ -161,9 +201,11 @@ def main(argv=None):
         path = Path(args.cases)
         cases = load_cases(path)
         reviewed = None
-        if "heldout" in path.name.casefold():
-            kind = "ambiguity" if "ambiguity" in path.stem.casefold() else "base"
-            reviewed = validate_reviewed_set(path, cases, kind=kind, policy_doc=policy,
+        holdout = args.holdout
+        if holdout is None and "heldout" in path.name.casefold():
+            holdout = "ambiguity" if "ambiguity" in path.stem.casefold() else "base"
+        if holdout is not None:
+            reviewed = validate_reviewed_set(path, cases, kind=holdout, policy_doc=policy,
                                             development_cases=load_cases(ROOT / "eval/scenarios.jsonl"))
         constitution = Path(args.constitution).read_text()
         if not constitution.strip():
@@ -172,6 +214,9 @@ def main(argv=None):
         hashes = {name: hashlib.sha256(file.read_bytes()).hexdigest() for name, file in (
             ("cases_sha256", path), ("constitution_sha256", Path(args.constitution)),
             ("policy_sha256", Path(args.policy)), ("corpus_sha256", Path(args.db)))}
+        scripture = Path(args.db).with_name("scripture.jsonl")
+        if scripture.is_file():
+            hashes["scripture_sha256"] = hashlib.sha256(scripture.read_bytes()).hexdigest()
         options = dict(temperature=args.temperature, num_predict=args.num_predict, seed=args.seed)
         if args.context_length is not None:
             options["num_ctx"] = args.context_length
@@ -190,7 +235,8 @@ def main(argv=None):
                       assessment_model=(args.assessment_model or args.model) if args.backend == "ollama" else None,
                       generation_options=options, timeout_s=args.timeout,
                       thinking=args.thinking,
-                      assessment_options=dict(temperature=0, num_predict=512, num_ctx=args.context_length),
+                      assessment_options=dict(temperature=0, num_predict=OllamaInterpreter.NUM_PREDICT,
+                                              num_ctx=args.context_length),
                       host=args.host if args.backend == "ollama" else None,
                       cases_path=str(path), **hashes,
                       policy_version=policy.get("policy_version"), corpus_version="0.1.0-draft")

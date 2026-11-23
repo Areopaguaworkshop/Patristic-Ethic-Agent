@@ -41,7 +41,7 @@ def test_claude_runner_disables_tools_mcp_hooks_and_persistence(monkeypatch):
     assert command[command.index("--append-system-prompt") + 1]
     assert "--no-session-persistence" in command
     assert command[command.index("--tools") + 1] == ""
-    assert command[command.index("--mcp-config") + 1] == "{}"
+    assert command[command.index("--mcp-config") + 1] == '{"mcpServers": {}}'
     assert "--strict-mcp-config" in command
 
 

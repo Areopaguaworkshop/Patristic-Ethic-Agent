@@ -35,9 +35,13 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/patristic_ethics"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"corpus/scripture.jsonl" = "patristic_ethics/data/corpus/scripture.jsonl"
+
 [tool.hatch.build.targets.sdist]
 include = [
   "/src",
+  "/corpus/scripture.jsonl",
   "/README.md",
   "/LICENSE",
   "/pyproject.toml",

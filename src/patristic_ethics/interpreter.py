@@ -162,6 +162,8 @@ def normalize_observation_payload(payload: dict) -> dict:
 class OllamaInterpreter:
     """Local Ollama backend. One attempt, no retries, no tools."""
 
+    NUM_PREDICT = 2048
+
     def __init__(
         self,
         model: str = "deepseek-v4.1-flash:cloud",
@@ -225,7 +227,7 @@ class OllamaInterpreter:
     def interpret(self, envelope: ContextEnvelope) -> Observation:
         self.last_usage = None
         try:
-            options = {"temperature": 0, "num_predict": 2048}
+            options = {"temperature": 0, "num_predict": self.NUM_PREDICT}
             if self.num_ctx is not None:
                 options["num_ctx"] = self.num_ctx
             thinking = {} if self.think is None else {"think": self.think}
@@ -311,7 +313,7 @@ def build_prompt(envelope: ContextEnvelope, task: str) -> str:
         )
         lines.append(f"Message proposed_action (role=tool, origin=tool): {action_text}")
     if envelope.candidate_response:
-        lines.append(f"Candidate response: {envelope.candidate_response}")
+        lines.append(f"Message candidate_response (role=assistant, origin=assistant): {envelope.candidate_response}")
     lines.append(task)
     return "\n".join(lines)
 

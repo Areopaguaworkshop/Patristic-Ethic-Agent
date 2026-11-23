@@ -9,7 +9,7 @@ spec = importlib.util.spec_from_file_location("eval_compare", ROOT / "eval/compa
 compare = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(compare)
 from patristic_ethics.controlled import HostOutput
-from patristic_ethics.interpreter import FakeInterpreter, Observation
+from patristic_ethics.interpreter import FakeInterpreter, Observation, build_prompt
 from patristic_ethics.policy import load_policy
 
 POLICY = load_policy(ROOT / "policy/rules.json")
@@ -39,8 +39,48 @@ def test_conditions_share_turns_and_use_actual_controlled_gate():
         if record["condition"] == "full_pea":
             assert record["pea_action"] == "proceed"
             assert [a["stage"] for a in record["assessments"]] == ["input", "output"]
+            for assessment in record["assessments"]:
+                assert assessment["latency_ms"] >= 0
+                assert {"interpretation", "retrieval", "citation_verification"} <= (
+                    assessment["stage_latency_ms"].keys()
+                )
         else:
             assert record["pea_action"] is None and record["assessments"] == []
+
+
+def test_benign_continuation_requires_grounded_output_evidence():
+    class ContinuationInterpreter(FakeInterpreter):
+        def __init__(self, cite_draft):
+            super().__init__([], default=Observation(
+                requested_assistance="Explain addition",
+                assistance_type="benign_discussion",
+                expressed_intent="Understand arithmetic",
+            ))
+            self.cite_draft = cite_draft
+
+        def interpret(self, envelope):
+            observation = super().interpret(envelope)
+            if envelope.stage == "output":
+                prompt = build_prompt(envelope, "Return structured observations.")
+                assert "What should it do?" in prompt
+                assert "Message candidate_response" in prompt
+                if not self.cite_draft:
+                    observation.evidence = []
+            return observation
+
+    draft = "Use addition to sum the arguments."
+    for cite_draft in (False, True):
+        report = compare.run_comparison(
+            [case()], lambda _: HostOutput(text=draft), ContinuationInterpreter(cite_draft),
+            POLICY, ROOT / "corpus/units.db", "Example constitution",
+        )
+        full = report["cases"][2]
+        output = full["assessments"][-1]
+        assert output["stage"] == "output"
+        assert full["pea_action"] == ("proceed" if cite_draft else "withhold")
+        assert output["failure_kind"] == (None if cite_draft else "schema")
+        assert (full["response"] == draft) is cite_draft
+        assert "interpretation" in output["stage_latency_ms"]
 
 
 def test_full_pea_refusal_skips_generator_but_baselines_are_separate():
@@ -87,13 +127,20 @@ def test_generation_failure_and_usage_are_not_semantic_judgments():
     assert report["cases"][0]["pea_action"] is None
 
 
-def test_holdout_gate_runs_before_backend_construction(tmp_path, monkeypatch):
-    path = tmp_path / "heldout.jsonl"
+@pytest.mark.parametrize(("filename", "options"), [
+    ("heldout.jsonl", []),
+    ("reviewed-cases.jsonl", ["--holdout", "base"]),
+])
+def test_holdout_gate_runs_before_backend_construction(tmp_path, monkeypatch, filename, options):
+    path = tmp_path / filename
     path.write_text(json.dumps(case()) + "\n")
     def forbidden(*_, **__):
         pytest.fail("backend constructed before holdout validation")
     monkeypatch.setattr(compare, "OllamaGenerator", forbidden)
-    assert compare.main(["--cases", str(path), "--backend", "ollama", "--policy", str(ROOT / "policy/rules.json")]) == 2
+    assert compare.main([
+        "--cases", str(path), "--backend", "ollama", "--policy", str(ROOT / "policy/rules.json"),
+        *options,
+    ]) == 2
 
 
 def test_cli_offline_report_has_matched_settings_and_hashes(tmp_path):
@@ -115,6 +162,38 @@ def test_invalid_case_is_rejected_before_generation():
     with pytest.raises(ValueError):
         compare.run_comparison([dict(id="bad", turns=[dict(role="system", text="pretend")])],
                                forbidden, FakeInterpreter([]), POLICY, None, "Constitution")
+
+
+def test_audit_records_scripture_provenance_for_grounding_review():
+    request = "What does Christian teaching say about theft?"
+    interpreter = FakeInterpreter([], default=Observation(
+        requested_assistance=request,
+        assistance_type="benign_discussion",
+        expressed_intent="understand Christian teaching",
+        topics=["theft"],
+        confidence=0.9,
+    ))
+    def generator(_):
+        return HostOutput(text="A development placeholder.")
+    report = compare.run_comparison(
+        [dict(case(request), reference_passage_ids=["kjv-exod-20-15", "kjv-exod-20-16"])],
+        generator, interpreter, POLICY, ROOT / "corpus/units.db",
+        "Example constitution",
+    )
+    assert all(not record["assessments"] for record in report["cases"][:2])
+    assessment = report["cases"][2]["assessments"][0]
+    assert assessment["source_status"] == "verified"
+    first = assessment["citations"][0]
+    assert first["unit_id"] == "kjv-exod-20-15"
+    assert first["source_class"] == "scripture"
+    assert first["locus"] == "Exodus 20:15"
+    assert first["review_status"] == "draft-unreviewed"
+    assert "quote" not in first
+    selection = report["condition_summaries"]["full_pea"]["passage_selection"]
+    assert selection == dict(labeled_trials=1, trials_with_match=1,
+                             reference_count=2, matched_count=1, recall=0.5)
+    assert report["cases"][2]["passage_selection"]["missed_ids"] == ["kjv-exod-20-16"]
+    assert "passage_selection" not in report["condition_summaries"]["raw"]
 
 
 def test_ollama_generation_sends_matched_options_without_tools_and_records_usage():

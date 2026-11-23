@@ -160,6 +160,36 @@ def _db(tmp_path: Path) -> Path:
     return build_db(_seed_jsonl(tmp_path), tmp_path / "corpus.db")
 
 
+def test_scripture_leads_guidance_and_invalid_lane_falls_back(tmp_path):
+    db_path = _db(tmp_path)
+    scripture_path = db_path.with_name("scripture.jsonl")
+    scripture_path.write_bytes(Path("corpus/scripture.jsonl").read_bytes())
+    request = "What does Christian teaching say about theft?"
+    observation = Observation(
+        requested_assistance=request,
+        assistance_type="benign_discussion",
+        expressed_intent="understand Christian teaching",
+        topics=["theft", "peacemakers"],
+        confidence=0.9,
+    )
+    envelope = build_envelope(request=request)
+    interpreter = FakeInterpreter([], default=observation)
+    result = assess(envelope, interpreter=interpreter, policy_doc=_policy_doc(), db_path=db_path)
+    assert result.action == "guide"
+    bible, father = result.guidance.citations
+    assert (bible.source_class, bible.locus) == ("scripture", "Exodus 20:15")
+    assert father.source_class == "patristic"
+    assert bible.quote in result.guidance.text
+
+    script = scripture_path.read_text()
+    scripture_path.write_text(script.replace("Thou shalt not steal.", "Tampered text"))
+    result = assess(envelope, interpreter=interpreter, policy_doc=_policy_doc(), db_path=db_path)
+    assert result.action == "guide"
+    assert result.decision.source_status == "partial"
+    assert [c.source_class for c in result.guidance.citations] == ["patristic"]
+    assert "From Scripture" not in result.guidance.text
+
+
 # --- benign ---
 
 

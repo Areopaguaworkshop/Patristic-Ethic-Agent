@@ -32,6 +32,44 @@ def record_key(record):
     return record["id"], record["repeat"], record["condition"]
 
 
+def final_citations(record):
+    assessments = record.get("assessments") or []
+    citations = assessments[-1].get("citations", []) if assessments else []
+    if not isinstance(citations, list) or any(
+        not isinstance(citation, dict)
+        or not isinstance(citation.get("unit_id"), str)
+        or not isinstance(citation.get("source_class"), str)
+        for citation in citations
+    ):
+        raise ValueError("assessment citations require unit IDs and source classes")
+    return {
+        citation["unit_id"]: citation["source_class"]
+        for citation in citations
+    }
+
+
+def passage_summary(group):
+    by_source = {}
+    for record in group:
+        for unit_id, source_class in final_citations(record).items():
+            counts = by_source.setdefault(source_class, dict(
+                selected=0, judged=0, supports=0, disagreed=0,
+            ))
+            judgments = {
+                grade["passage_relevance"][unit_id]
+                for grade in record["human_grades"]
+                if unit_id in (grade.get("passage_relevance") or {})
+            }
+            counts["selected"] += 1
+            counts["judged"] += bool(judgments)
+            counts["supports"] += judgments == {True}
+            counts["disagreed"] += len(judgments) > 1
+    for counts in by_source.values():
+        counts["unjudged"] = counts["selected"] - counts["judged"]
+        counts["support_rate"] = counts["supports"] / counts["judged"] if counts["judged"] else None
+    return by_source
+
+
 def grade_report(report, grades, report_hash):
     """No inference of human judgments; source report remains unchanged."""
     if not isinstance(report, dict) or not isinstance(report.get("cases"), list) or not report["cases"]:
@@ -81,6 +119,13 @@ def grade_report(report, grades, report_hash):
             raise ValueError("task_completion must be a care-reviewer boolean or null")
         if completion is not None and (not isinstance(grade.get("task_reason"), str) or not grade["task_reason"].strip()):
             raise ValueError("task completion judgment requires a reason")
+        relevance = grade.get("passage_relevance")
+        if relevance is not None and (
+            role != "content" or not isinstance(relevance, dict)
+            or any(type(value) is not bool for value in relevance.values())
+            or not relevance.keys() <= final_citations(record).keys()
+        ):
+            raise ValueError("passage relevance requires boolean content judgments for selected passage IDs")
         record["human_grades"].append(copy.deepcopy(grade))
 
     dimensions = [dimension for group in DIMENSIONS.values() for dimension in group] + ["task_completion"]
@@ -136,6 +181,7 @@ def grade_report(report, grades, report_hash):
         completed = [all(values) for values in completion_judgments if values]
         summaries[condition] = dict(trials=len(group), reviewed_records=sum(bool(r["human_grades"]) for r in group),
             ungraded_records=sum(not r["human_grades"] for r in group), dimensions=metrics,
+            passage_relevance_by_source=passage_summary(group),
             answerable_task_completion=dict(trials=len(answerable), scored_records=len(completed),
                 passed_records=sum(completed), missing_records=len(answerable)-len(completed),
                 pass_rate=sum(completed)/len(completed) if completed else None,
@@ -154,21 +200,53 @@ def grade_report(report, grades, report_hash):
     return output
 
 
+def bind_blind_grades(grades, key_rows):
+    """Bind reviewer judgments to the coordinator's unblinding key."""
+    fields = ("id", "repeat", "condition", "report_sha256", "response_sha256")
+    bindings = {}
+    for row in key_rows:
+        review_id = row.get("review_id") if isinstance(row, dict) else None
+        if not isinstance(review_id, str) or not review_id or review_id in bindings:
+            raise ValueError("blind key requires unique review IDs")
+        if any(field not in row for field in fields):
+            raise ValueError("blind key is missing binding fields")
+        bindings[review_id] = {field: row[field] for field in fields}
+    bound = []
+    for grade in grades:
+        review_id = grade.get("review_id") if isinstance(grade, dict) else None
+        if not isinstance(review_id, str) or review_id not in bindings:
+            raise ValueError("grade references an unknown review ID")
+        if any(field in grade for field in fields):
+            raise ValueError("blind grade must use the review ID as its only binding")
+        bound.append({**grade, **bindings[review_id]})
+    return bound
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--report", required=True)
     parser.add_argument("--grades", required=True, help="reviewer JSONL file")
+    parser.add_argument("--blind-key", type=Path, help="private key for grades identified by review_id")
     parser.add_argument("--output", required=True)
     args = parser.parse_args(argv)
     try:
         source, grades_path, destination = Path(args.report), Path(args.grades), Path(args.output)
-        if (destination.resolve() in {source.resolve(), grades_path.resolve()}
-                or (destination.exists() and any(destination.samefile(path) for path in (source, grades_path)))):
+        inputs = [source, grades_path]
+        if args.blind_key is not None:
+            inputs.append(args.blind_key)
+        if (destination.resolve() in {path.resolve() for path in inputs}
+                or (destination.exists() and any(destination.samefile(path) for path in inputs))):
             raise ValueError("output must preserve the source report and grades")
         raw, grade_bytes = source.read_bytes(), grades_path.read_bytes()
         grades = [json.loads(line) for line in grade_bytes.decode("utf-8").splitlines() if line.strip()]
+        if args.blind_key is not None:
+            key_bytes = args.blind_key.read_bytes()
+            key_rows = [json.loads(line) for line in key_bytes.decode("utf-8").splitlines() if line.strip()]
+            grades = bind_blind_grades(grades, key_rows)
         result = grade_report(json.loads(raw), grades, sha256(raw))
         result["grades_sha256"] = sha256(grade_bytes)
+        if args.blind_key is not None:
+            result["blind_key_sha256"] = sha256(key_bytes)
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_text(json.dumps(result, ensure_ascii=False, indent=2))
     except (OSError, ValueError, TypeError) as exc:

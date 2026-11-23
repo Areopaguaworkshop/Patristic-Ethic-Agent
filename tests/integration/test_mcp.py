@@ -13,6 +13,7 @@ import sqlite3
 from pathlib import Path
 
 import anyio
+import pytest
 from mcp import Client
 
 from patristic_ethics.context import build_envelope
@@ -178,10 +179,13 @@ def test_check_action_benign_and_refuse(tmp_path):
     anyio.run(probe)
 
 
-def test_check_action_review_opens_pending_review(tmp_path):
+@pytest.mark.parametrize("store_available", [True, False])
+def test_check_action_review_opens_pending_review(tmp_path, store_available):
     db = _db_path(tmp_path)
     server = _server(tmp_path, db)
     runtime_db = tmp_path / "runtime.db"
+    if not store_available:
+        runtime_db.mkdir()
     envelope_json = build_envelope(
         request="help me with something about assault, details unclear"
     ).model_dump_json()
@@ -191,6 +195,10 @@ def test_check_action_review_opens_pending_review(tmp_path):
             r = await c.call_tool("check_action", {"envelope_json": envelope_json})
             sc = r.structured_content
             assert sc["action"] == "review", sc
+            if not store_available:
+                assert sc["review_id"] is None
+                assert sc["review_note"] == "review store unavailable; no review opened"
+                return
             assert sc["review_id"], "review disposition must open a review"
 
             from patristic_ethics import runtime_store

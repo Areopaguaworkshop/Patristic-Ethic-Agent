@@ -125,3 +125,62 @@ def test_output_hardlink_cannot_overwrite_input(tmp_path):
     os.link(source, alias)
     assert grade.main(["--report", str(source), "--grades", str(grades), "--output", str(alias)]) == 2
     assert source.read_bytes() == original
+
+
+def test_blind_export_and_grading_round_trip(tmp_path):
+    import subprocess
+    import sys
+
+    cases = tmp_path / "cases.jsonl"
+    cases.write_text(json.dumps({"id": "case-1", "turns": [{"role": "user", "text": "Write a haiku."}]}))
+    source = tmp_path / "report.json"
+    source.write_text(json.dumps({**report(), "cases_sha256": grade.sha256(cases.read_bytes())}))
+    packet, key = tmp_path / "packet.jsonl", tmp_path / "key.jsonl"
+    export = [sys.executable, str(ROOT / "eval/blind.py"), "--report", str(source),
+              "--cases", str(cases), "--packet", str(packet), "--key", str(key)]
+    subprocess.run(export, check=True, capture_output=True)
+    assert all(set(json.loads(row)) == {"review_id", "turns", "response"}
+               for row in packet.read_text().splitlines())
+    binding = next(row for row in map(json.loads, key.read_text().splitlines())
+                   if row["condition"] == "full_pea")
+    blind_judgment = {name: value for name, value in judgment().items() if name not in binding}
+    blind_judgment["review_id"] = binding["review_id"]
+    grades, output = tmp_path / "grades.jsonl", tmp_path / "output.json"
+    grades.write_text(json.dumps(blind_judgment))
+    args = ["--report", str(source), "--grades", str(grades), "--blind-key", str(key),
+            "--output", str(output)]
+    assert grade.main(args) == 0
+    result = json.loads(output.read_text())
+    assert result["cases"][2]["human_grades"][0]["review_id"] == binding["review_id"]
+    assert result["blind_key_sha256"] == grade.sha256(key.read_bytes())
+    grades.write_text(json.dumps({**blind_judgment, "review_id": "unknown"}))
+    assert grade.main(args) == 2
+    assert json.loads(output.read_text()) == result
+    cases.write_text(cases.read_text() + "\n")
+    packet.unlink()
+    key.unlink()
+    assert subprocess.run(export, capture_output=True).returncode == 2
+    assert not packet.exists() and not key.exists()
+
+
+def test_passage_relevance_reports_coverage_and_disagreement_by_source():
+    source = report()
+    source["cases"][-1]["assessments"] = [
+        {"citations": [{"unit_id": "earlier", "source_class": "scripture"}]},
+        {"citations": [{"unit_id": "verse", "source_class": "scripture"},
+                       {"unit_id": "father", "source_class": "patristic"}]},
+    ]
+    first = dict(judgment(), passage_relevance={"verse": True})
+    second = dict(judgment(reviewer="second"), passage_relevance={"verse": False})
+    result = grade.grade_report(source, [first, second], "report-hash")
+    relevance = result["human_grade_summaries"]["full_pea"]["passage_relevance_by_source"]
+    assert relevance["scripture"] == dict(selected=1, judged=1, supports=0,
+                                          disagreed=1, unjudged=0, support_rate=0)
+    assert relevance["patristic"]["unjudged"] == 1
+    assert relevance["patristic"]["support_rate"] is None
+
+    for invalid in (dict(first, passage_relevance={"earlier": True}),
+                    dict(first, passage_relevance={"verse": 1}),
+                    dict(judgment("care"), passage_relevance={"verse": True})):
+        with pytest.raises(ValueError, match="passage relevance"):
+            grade.grade_report(source, [invalid], "report-hash")

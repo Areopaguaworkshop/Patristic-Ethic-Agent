@@ -43,7 +43,11 @@ def build_snapshot(root, profile_path):
     if any((Path(item["path"]).parts[:1] != ("docs",) or Path(item["path"]).suffix not in {".md", ".json", ".jsonl", ".txt"})
            and item["path"] != "README.md" for item in evidence):
         raise ValueError("evidence must be explicit docs artifacts or README.md, never runtime databases")
-    paths = {str(profile_path), "pyproject.toml", "uv.lock", "corpus/seed.jsonl", "corpus/units.db"}
+    paths = {
+        str(profile_path), "pyproject.toml", "uv.lock",
+        "corpus/seed.jsonl", "corpus/units.db", "corpus/scripture.jsonl",
+        "src/patristic_ethics/data/corpus/units.db",
+    }
     paths.update(item["path"] for item in evidence)
     for directory in SOURCE_DIRS:
         for path in (root / directory).rglob("*"):

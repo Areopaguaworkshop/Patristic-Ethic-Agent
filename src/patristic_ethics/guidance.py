@@ -200,10 +200,14 @@ def compose_guidance(
     elif disposition == "allow":
         parts.append("That's ordinary work; feel free to proceed.")
 
+    scripture = next((c for c in citations if c.source_class == "scripture"), None)
+    if scripture and not urgent and disposition in {"guide", "refuse"}:
+        parts.append(f'From Scripture ({scripture.locus}, {scripture.author})\n“{scripture.quote}”')
+
     if limited and disposition != "allow":
         parts.append(
             "A note on sources: I have insufficient evidence in this "
-            "collection to cite the Fathers here."
+            "collection to cite a passage here."
         )
 
     if any(c.review_status == "draft-unreviewed" for c in citations):

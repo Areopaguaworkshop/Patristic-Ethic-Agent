@@ -55,7 +55,7 @@ def claude_runner(
         "",
         "--strict-mcp-config",
         "--mcp-config",
-        "{}",
+        '{"mcpServers": {}}',
     ]
     try:
         proc = subprocess.run(

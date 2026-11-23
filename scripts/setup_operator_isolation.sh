@@ -57,7 +57,7 @@ if id -nG "$AGENT_USER" | tr ' ' '\n' | grep -qx "sudo"; then
 fi
 echo
 echo "Operator console example (run as the operator, not the agent):"
-echo "  sudo -u $OPERATOR_USER env \\"
-echo "    PEA_RUNTIME_DB=$RUNTIME_DB \\"
-echo "    PEA_OPERATOR_TOKEN=\"\$(cat $TOKEN_FILE)\" \\"
-echo "    $PWD/.venv/bin/python -m patristic_ethics.operator --db $RUNTIME_DB list"
+echo "Install pea-operator in a location the operator can execute and the agent cannot modify."
+printf '  sudo -u %q bash -c %q _ %q %q\n' "$OPERATOR_USER" \
+  'set -e; PEA_OPERATOR_TOKEN="$(cat -- "$1")"; export PEA_OPERATOR_TOKEN; exec pea-operator --db "$2" list' \
+  "$TOKEN_FILE" "$RUNTIME_DB"

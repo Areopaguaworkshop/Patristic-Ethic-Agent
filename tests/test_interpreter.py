@@ -20,6 +20,7 @@ from patristic_ethics.interpreter import (
     InterpreterUnavailable,
     Observation,
     OllamaInterpreter,
+    build_prompt,
 )
 
 OBS = Observation(
@@ -261,3 +262,23 @@ def test_live_ollama_interpret():
     observation = interp.interpret(env)
     assert isinstance(observation, Observation)
     assert observation.requested_assistance
+
+
+def test_output_prompt_labels_draft_with_its_evidence_source_id():
+    envelope = build_envelope(
+        stage="output",
+        request="Revise the first line.",
+        messages=[{
+            "source_id": "previous_reply",
+            "seq": 1,
+            "role": "assistant",
+            "origin": "assistant",
+            "text": "The original first line.",
+        }],
+        candidate_response="The revised first line.",
+    )
+
+    prompt = build_prompt(envelope, "Return structured observations.")
+
+    assert "Message previous_reply" in prompt
+    assert "Message candidate_response (role=assistant, origin=assistant): The revised first line." in prompt

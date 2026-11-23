@@ -162,7 +162,7 @@ cp adapters/opencode/index.ts .opencode/plugins/pea-ethics.ts
 # opencode.json: "plugin": [".opencode/plugins/pea-ethics.ts"]
 ```
 
-OpenCode 2.x uses the v2 plugin schema. The bundled `adapters/opencode/index.ts` targets 1.18.x and fails to load on 2.2.5. Use the `pea` MCP server or the controlled client on OpenCode 2.x; keep the plugin for 1.18.x.
+OpenCode 2.x uses the v2 plugin schema. The bundled `adapters/opencode/index.ts` targets 1.18.x and fails to load on 2.2.5. Use the `pea` MCP server with OpenCode 2.x. The controlled client also requires verification of the effective tools-disabled profile. That inspection failed on OpenCode 2.4.1 and the client withheld output.
 
 Set the CLI and data paths in the host environment:
 
@@ -224,7 +224,9 @@ PEA_RUN_STDIO_TEST=1 .venv/bin/pytest -q tests/integration/test_proxy.py
 
 ## Citation lanes (CSL-JSON)
 
-Modern government and scripture sources use CSL-JSON in `corpus/modern.jsonl` and `corpus/scripture.jsonl`. Each lane has its own SQLite/FTS5 database and a `source_class` label (`modern_government` or `scripture`). Neither lane is patristic evidence.
+Modern government and Scripture sources use CSL-JSON in `corpus/modern.jsonl` and `corpus/scripture.jsonl`. Each lane has a `source_class` label (`modern_government` or `scripture`) and supports a separate SQLite/FTS5 index for manual search.
+
+At runtime, assessment validates the `scripture.jsonl` beside the configured patristic database and lists KJV passages linked to matched principles first. Guidance and refusal text can quote the first verified Scripture passage. Urgent-care text prioritizes immediate support and omits the inline quotation. Patristic citations provide additional evidence and remain available if the Scripture file is missing or fails validation. The default wheel bundles the Scripture file beside its corpus database.
 
 ```sh
 .venv/bin/python -m patristic_ethics.cli corpus validate-csl corpus/modern.jsonl --lane modern
@@ -236,7 +238,7 @@ Modern government and scripture sources use CSL-JSON in `corpus/modern.jsonl` an
 .venv/bin/python -m patristic_ethics.cli corpus search-csl peacemakers --db corpus/scripture.db
 ```
 
-CiteIndex is an external ingestion tool (a local CiteIndex checkout, `$CITEINDEX`, v0.15.0). The runtime consumes CSL-JSON records; it does not import CiteIndex. PEA-specific fields live under `custom`: `citation_index`, `principle_ids`, `locus`, `text`, `text_sha256`, `rights_status`, `rights_evidence`, `review_status`, and `verification_method`. The nine current records are owner-reviewed; the three modern records remain `public-domain-unverified` for third-party material.
+CiteIndex is an external ingestion tool (a local CiteIndex checkout, `$CITEINDEX`, v0.15.0). PEA-specific fields live under `custom`, including exact-text hashes, edition and rights evidence, principle links, and editorial review status. The Scripture lane contains 13 KJV records spanning the ten principles. Seven newly sourced records have draft principle links pending independent review. The three modern records carry `public-domain-unverified` rights status for third-party material.
 
 Linked provenance records live in `corpus/provenance.jsonl`. They use CSL-JSON and link catalogues, editions, and secondary literature to seed unit IDs:
 

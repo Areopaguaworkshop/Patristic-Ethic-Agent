@@ -2,8 +2,8 @@
   "schema_version": 2,
   "diagram_type": "workflow",
   "meta": {
-    "title": "Patristic Ethics Agent — one-turn workflow",
-    "output": "pea-workflow.html",
+    "title": "Patristic Ethics Agent \u2014 one-turn workflow and failure paths",
+    "output": "docs/diagrams/pea-workflow.html",
     "quality_profile": "showcase",
     "views": [
       {
@@ -27,10 +27,12 @@
           "safety",
           "refuse",
           "interpreter",
+          "clarify",
           "withhold",
-          "guidance"
+          "guidance",
+          "runtime"
         ],
-        "note": "Non-overridable harm refuses before the model; operational failure and bad citations withhold instead of guessing."
+        "note": "Schema failure withholds; policy ambiguity clarifies; bad quotes withhold. The action label and text differ."
       },
       {
         "id": "evidence-review",
@@ -41,8 +43,26 @@
           "runtime"
         ],
         "note": "Only quotes that verify against the corpus are cited; pending reviews and event audit live in the operator-owned store."
+      },
+      {
+        "id": "clarify-ledger",
+        "label": "Clarify outcomes",
+        "focus": [
+          "policy",
+          "clarify",
+          "interpreter",
+          "withhold",
+          "runtime"
+        ],
+        "note": "17 clarify rows: 6 schema failures, 6 care/guidance, 2 harmful, 2 correct, 1 review mismatch."
       }
-    ]
+    ],
+    "repository": {
+      "url": "https://github.com/Areopaguaworkshop/Patristic-Ethic-Agent",
+      "provider": "github",
+      "link_mode": "local-only",
+      "revision": "a78e17071cbbfe1e4b0e6388441fb3fe102cb35e"
+    }
   },
   "lanes": [
     {
@@ -56,6 +76,11 @@
     {
       "id": "exception",
       "label": "Evidence, stop + review",
+      "variant": "exception"
+    },
+    {
+      "id": "failure",
+      "label": "Operational stop",
       "variant": "exception"
     }
   ],
@@ -103,6 +128,7 @@
     "allowedTerminals": [
       "apply",
       "refuse",
+      "clarify",
       "withhold",
       "runtime",
       "corpus"
@@ -115,6 +141,10 @@
       {
         "from": "interpreter",
         "to": "withhold"
+      },
+      {
+        "from": "policy",
+        "to": "clarify"
       },
       {
         "from": "guidance",
@@ -147,7 +177,7 @@
       "col": 0,
       "type": "external",
       "label": "Host turn",
-      "sublabel": "input · pre-action · output",
+      "sublabel": "input \u00b7 pre-action \u00b7 output",
       "tag": "untrusted text",
       "width": 120
     },
@@ -157,7 +187,7 @@
       "col": 5,
       "type": "frontend",
       "label": "Host applies",
-      "sublabel": "proceed · guide · stop",
+      "sublabel": "proceed \u00b7 guide \u00b7 stop",
       "tag": "adapter owns it",
       "width": 120
     },
@@ -175,7 +205,7 @@
       "lane": "gate",
       "col": 2,
       "type": "security",
-      "label": "P01–P03 net",
+      "label": "P01\u2013P03 net",
       "sublabel": "lexical, before model",
       "tag": "non-overridable"
     },
@@ -195,7 +225,7 @@
       "type": "security",
       "label": "Policy",
       "sublabel": "signals + frozen order",
-      "tag": "refuse → … → allow"
+      "tag": "refuse \u2192 \u2026 \u2192 allow"
     },
     {
       "id": "guidance",
@@ -203,7 +233,7 @@
       "col": 5,
       "type": "backend",
       "label": "Guidance + check",
-      "sublabel": "compose · verify quotes",
+      "sublabel": "compose \u00b7 verify quotes",
       "tag": "no fabrication",
       "width": 120
     },
@@ -218,13 +248,20 @@
     },
     {
       "id": "withhold",
-      "lane": "exception",
+      "lane": "failure",
       "col": 3,
       "type": "security",
-      "label": "Clarify / withhold",
-      "sublabel": "failure or bad quote",
-      "tag": "fail closed",
-      "width": 140
+      "label": "Withhold",
+      "sublabel": "schema \u00b7 bad quote",
+      "tag": "static message",
+      "width": 140,
+      "sources": [
+        {
+          "path": "src/patristic_ethics/controlled.py",
+          "line": 325,
+          "label": "released text"
+        }
+      ]
     },
     {
       "id": "runtime",
@@ -242,9 +279,26 @@
       "col": 5,
       "type": "database",
       "label": "Corpus index",
-      "sublabel": "units.db · FTS5",
+      "sublabel": "units.db \u00b7 FTS5",
       "tag": "read-only",
       "width": 120
+    },
+    {
+      "id": "clarify",
+      "lane": "exception",
+      "col": 3,
+      "type": "security",
+      "label": "Clarify",
+      "sublabel": "policy ambiguity",
+      "tag": "question released",
+      "width": 120,
+      "sources": [
+        {
+          "path": "src/patristic_ethics/policy.py",
+          "line": 431,
+          "label": "clarify decision"
+        }
+      ]
     }
   ],
   "edges": [
@@ -298,7 +352,8 @@
       "from": "interpreter",
       "to": "withhold",
       "variant": "security",
-      "role": "error"
+      "role": "error",
+      "label": "invalid JSON"
     },
     {
       "id": "guidance-corpus",
@@ -324,24 +379,34 @@
       "variant": "security",
       "role": "error",
       "fromSide": "right",
-      "toSide": "bottom",
-      "via": [
-        [
-          890,
-          246
-        ],
-        [
-          890,
-          440
-        ],
-        [
-          505.2,
-          440
-        ]
-      ],
-      "labelAt": [
-        700,
-        440
+      "toSide": "bottom"
+    },
+    {
+      "id": "policy-clarify",
+      "from": "policy",
+      "to": "clarify",
+      "label": "ambiguous",
+      "variant": "security",
+      "role": "branch"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "Where the 17 clarifies land",
+      "items": [
+        "6 were assessor schema failures: 4 refusal, 2 guidance. All released the withheld message.",
+        "6 were semantic care or guidance misses. Two of those are urgent-care rows.",
+        "2 were explicit-means requests that clarified instead of refusing. 2 were correct clarifies; 1 expected review."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Action contract",
+      "items": [
+        "Clarify releases a question. Withhold releases the static service message.",
+        "A schema failure is logged as clarify but releases the withheld text. The report label and user-visible output diverge.",
+        "The workflow is not missing a layer. The assessor JSON and the ambiguity threshold are the failing inputs."
       ]
     }
   ]

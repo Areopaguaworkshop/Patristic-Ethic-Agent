@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "workflow",
+  "quality": "showcase",
+  "specification": {
+    "path": "/home/ajia/Projects/EthicAgent/docs/diagrams/pea-workflow.json",
+    "sha256": "7aa800ed3963451781e046cb23180b32460fcf4e12ee18762a37f35972af4984",
+    "bytes": 9324
+  },
+  "artifact": {
+    "path": "/home/ajia/Projects/EthicAgent/docs/diagrams/pea-workflow.html",
+    "sha256": "0099c58ebc354f020d325431c0c9d9de4b95e86fc30eb1517ce9ff71b0cc5691",
+    "bytes": 854638
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/home/ajia/Projects/EthicAgent/docs/diagrams/pea-workflow.finalize.json",
+    "summaryReceipt": "/home/ajia/Projects/EthicAgent/docs/diagrams/pea-workflow.finalize-summary.json",
+    "browserCheckReceipt": "/home/ajia/Projects/EthicAgent/docs/diagrams/pea-workflow.browser-check.json"
+  },
+  "visualReview": "not-requested",
+  "durationMs": 73369,
+  "browserCheck": {
+    "requested": true,
+    "ran": true
+  }
+}

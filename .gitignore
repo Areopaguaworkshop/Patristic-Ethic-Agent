@@ -82,3 +82,6 @@ node_modules/
 
 # Local evaluation artifacts (may contain unsafe model output):
 /artifacts/
+
+# Local clarify-case analysis page (contains harmful eval prompts):
+/docs/evaluation/artifacts/pea-clarify-17.html

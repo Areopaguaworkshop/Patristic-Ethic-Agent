@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "5c7a210f-0d67-4527-b2bc-7c8150cc23a4",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/ajia/Projects/EthicAgent/docs/diagrams/pea-architecture.json",
+  "output": "/home/ajia/Projects/EthicAgent/docs/diagrams/pea-architecture.html",
+  "specification": {
+    "sha256": "68602dca61e8ac5b3c5887148343a21bdac6c6dbd21ca317505e063bc3e4dafe",
+    "bytes": 9784
+  },
+  "artifact": {
+    "sha256": "096488426dcbd81307b93d176f0202d85d4ec9524d8f3a9ab1820b36215eab85",
+    "bytes": 854132
+  }
+}

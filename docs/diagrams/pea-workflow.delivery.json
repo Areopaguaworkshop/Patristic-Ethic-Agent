@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "163613b4-af67-4edc-ac01-debe4c832b04",
+  "status": "current",
+  "command": "deliver",
+  "type": "workflow",
+  "input": "/home/ajia/Projects/EthicAgent/docs/diagrams/pea-workflow.json",
+  "output": "/home/ajia/Projects/EthicAgent/docs/diagrams/pea-workflow.html",
+  "specification": {
+    "sha256": "7aa800ed3963451781e046cb23180b32460fcf4e12ee18762a37f35972af4984",
+    "bytes": 9324
+  },
+  "artifact": {
+    "sha256": "0099c58ebc354f020d325431c0c9d9de4b95e86fc30eb1517ce9ff71b0cc5691",
+    "bytes": 854638
+  }
+}

@@ -2,14 +2,14 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "Patristic Ethics Agent (PEA) — architecture",
-    "output": "pea-architecture.html",
+    "title": "Patristic Ethics Agent (PEA) \u2014 architecture",
+    "output": "docs/diagrams/pea-architecture.html",
     "quality_profile": "showcase",
     "repository": {
       "url": "https://github.com/Areopaguaworkshop/Patristic-Ethic-Agent",
       "provider": "github",
       "link_mode": "local-only",
-      "revision": "3a77ad9e7f285bf90d4d0574cddf68b0ce7809ff"
+      "revision": "a78e17071cbbfe1e4b0e6388441fb3fe102cb35e"
     },
     "views": [
       {
@@ -35,7 +35,7 @@
           "hook_adapter",
           "mcp_surface"
         ],
-        "note": "Four ways a host reaches PEA, and what each surface can actually guarantee."
+        "note": "Five host paths: native plugin, command hooks, controlled clients, MCP stdio. Controlled clients own the display."
       },
       {
         "id": "evidence-store",
@@ -46,6 +46,18 @@
           "assess"
         ],
         "note": "Retrieval reads the corpus index; reviews and audit events land in the operator-owned runtime store."
+      },
+      {
+        "id": "failure-boundary",
+        "label": "Failure boundary",
+        "focus": [
+          "assess",
+          "interpreter",
+          "policy",
+          "guidance",
+          "runtime_db"
+        ],
+        "note": "Schema failure withholds; policy ambiguity clarifies. The action label and visible text diverge."
       }
     ],
     "viewBox": [
@@ -58,7 +70,7 @@
       "id": "opencode",
       "type": "external",
       "label": "OpenCode",
-      "sublabel": "native plugin",
+      "sublabel": "plugin \u00b7 controlled",
       "pos": [
         24,
         70
@@ -71,8 +83,8 @@
     {
       "id": "codex_claude",
       "type": "external",
-      "label": "Codex · Claude Code",
-      "sublabel": "command hooks",
+      "label": "Codex \u00b7 Claude Code",
+      "sublabel": "hooks \u00b7 controlled",
       "pos": [
         24,
         158
@@ -99,8 +111,8 @@
     {
       "id": "native_plugin",
       "type": "security",
-      "label": "OpenCode plugin",
-      "sublabel": "advisory + covered gate",
+      "label": "OpenCode surface",
+      "sublabel": "plugin \u00b7 controlled",
       "pos": [
         204,
         72
@@ -109,13 +121,13 @@
         160,
         60
       ],
-      "tag": "no display gate"
+      "tag": "advisory / buffered"
     },
     {
       "id": "hook_adapter",
       "type": "security",
-      "label": "PEA hooks",
-      "sublabel": "Codex · Claude Code",
+      "label": "Codex \u00b7 Claude surface",
+      "sublabel": "hooks \u00b7 controlled",
       "pos": [
         204,
         156
@@ -130,7 +142,7 @@
       "id": "mcp_surface",
       "type": "backend",
       "label": "pea-mcp server",
-      "sublabel": "4 tools + proxy",
+      "sublabel": "4 tools",
       "pos": [
         204,
         240
@@ -145,7 +157,7 @@
       "id": "assess",
       "type": "backend",
       "label": "assess.py",
-      "sublabel": "interpret → decide → guide",
+      "sublabel": "interpret \u2192 decide \u2192 guide",
       "pos": [
         404,
         128
@@ -166,7 +178,7 @@
       "id": "interpreter",
       "type": "cloud",
       "label": "Interpreter",
-      "sublabel": "Fake · Ollama · remote",
+      "sublabel": "Fake \u00b7 Ollama \u00b7 remote",
       "pos": [
         640,
         60
@@ -175,7 +187,7 @@
         150,
         64
       ],
-      "tag": "Observation",
+      "tag": "Observation JSON",
       "sources": [
         {
           "path": "src/patristic_ethics/interpreter.py",
@@ -187,7 +199,7 @@
       "id": "policy",
       "type": "security",
       "label": "Deterministic policy",
-      "sublabel": "rules.json · PEA-P01…P10",
+      "sublabel": "rules.json \u00b7 PEA-P01\u2026P10",
       "pos": [
         640,
         150
@@ -196,7 +208,7 @@
         150,
         64
       ],
-      "tag": "frozen order",
+      "tag": "ambiguity gate",
       "sources": [
         {
           "path": "src/patristic_ethics/policy.py",
@@ -208,7 +220,7 @@
       "id": "guidance",
       "type": "backend",
       "label": "Guidance + verify",
-      "sublabel": "compose · exact quotes",
+      "sublabel": "compose \u00b7 exact quotes",
       "pos": [
         640,
         240
@@ -229,7 +241,7 @@
       "id": "units_db",
       "type": "database",
       "label": "Corpus index",
-      "sublabel": "units.db · FTS5",
+      "sublabel": "units.db + scripture",
       "pos": [
         820,
         120
@@ -238,7 +250,7 @@
         140,
         72
       ],
-      "tag": "exact retrieval"
+      "tag": "verified quotes"
     },
     {
       "id": "runtime_db",
@@ -279,7 +291,7 @@
     },
     {
       "kind": "security-group",
-      "label": "PEA core — src/patristic_ethics",
+      "label": "PEA core \u2014 src/patristic_ethics",
       "wraps": [
         "assess",
         "interpreter",
@@ -402,26 +414,35 @@
       "dot": "cyan",
       "title": "Entry surfaces",
       "items": [
-        "Native adapters give advisory guidance plus a covered pre-tool gate; there is no before-display guarantee.",
-        "Controlled clients own the display: they buffer host output and release only assessed text.",
-        "The MCP server exposes four read-only tools; the proxy gates tools/call before a downstream server runs it."
+        "Native adapters give advisory guidance and a covered pre-tool gate; they cannot withhold streamed display.",
+        "Controlled clients buffer host output and release only assessed text. That is the before-display path.",
+        "The MCP server exposes four read-only tools; the Node launcher only starts the Python server."
       ]
     },
     {
       "dot": "rose",
       "title": "Frozen precedence",
       "items": [
-        "refuse → review → clarify → guide (distress) → guide → allow, tested in that order.",
+        "refuse \u2192 review \u2192 clarify \u2192 guide (distress) \u2192 guide \u2192 allow, tested in that order.",
         "source_status is recorded but never consulted: a missing corpus cannot turn refuse into allow.",
-        "Interpreter failure withholds unreviewed output and asks to clarify on input."
+        "Input interpreter failure returns a clarify action with the withheld text; the label and visible text diverge."
       ]
     },
     {
       "dot": "amber",
+      "title": "Current failure boundary",
+      "items": [
+        "6 of 32 full-PEA rows failed the assessor JSON schema; all six released the withheld message.",
+        "6 more semantic clarify rows hit care or guidance; 2 explicit-means requests clarified instead of refusing.",
+        "The architecture is fail-closed. The failures are model JSON reliability and policy calibration, not a missing layer."
+      ]
+    },
+    {
+      "dot": "slate",
       "title": "Honest limits",
       "items": [
         "Policy and corpus remain owner-reviewed drafts; this is not a qualified release.",
-        "Operator OS isolation is scripted but unproven at the kernel boundary.",
+        "The 0.0.3 candidate is built and verified but unpublished; human gates and host checks remain.",
         "Further reading is bibliography only and is never quoted in guidance."
       ]
     }

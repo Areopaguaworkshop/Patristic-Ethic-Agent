@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "/home/ajia/Projects/EthicAgent/docs/diagrams/pea-architecture.json",
+    "sha256": "68602dca61e8ac5b3c5887148343a21bdac6c6dbd21ca317505e063bc3e4dafe",
+    "bytes": 9784
+  },
+  "artifact": {
+    "path": "/home/ajia/Projects/EthicAgent/docs/diagrams/pea-architecture.html",
+    "sha256": "096488426dcbd81307b93d176f0202d85d4ec9524d8f3a9ab1820b36215eab85",
+    "bytes": 854132
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/home/ajia/Projects/EthicAgent/docs/diagrams/pea-architecture.finalize.json",
+    "summaryReceipt": "/home/ajia/Projects/EthicAgent/docs/diagrams/pea-architecture.finalize-summary.json",
+    "browserCheckReceipt": "/home/ajia/Projects/EthicAgent/docs/diagrams/pea-architecture.browser-check.json"
+  },
+  "visualReview": "not-requested",
+  "durationMs": 65981,
+  "browserCheck": {
+    "requested": true,
+    "ran": true
+  },
+  "visualReviewRecommendation": {
+    "action": "inspect-route-readability",
+    "signals": {
+      "routesOverSuggestedStretch": 1
+    },
+    "reason": "Automated gates passed, but crossings or detours still need perceptual review before claiming visual quality.",
+    "affectedRoutes": {
+      "crossings": [],
+      "detours": [
+        {
+          "relationship": {
+            "id": "assess-units",
+            "from": "assess",
+            "to": "units_db",
+            "label": "retrieve",
+            "collectionIndex": 9,
+            "artifactIndex": 10
+          },
+          "bends": 2,
+          "stretch": 1.499
+        }
+      ],
+      "truncated": false
+    },
+    "hints": [
+      "assess → units_db needs 2 bends: move node assess or units_db so they share a row or column with matching centers, or sit diagonally with a clear corner."
+    ],
+    "repair": "Trace these relationships at the desktop viewport. For Architecture, use references/architecture-layout-repair.md: reflow a blocked main path or tangled connected scene, and repair an isolated defect locally only when the surrounding composition is accepted. Preserve all semantic content and user-fixed geometry. Rerun finalize once after the edit."
+  }
+}
